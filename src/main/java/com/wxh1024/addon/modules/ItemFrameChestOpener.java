@@ -23,7 +23,6 @@ import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -173,34 +172,11 @@ public class ItemFrameChestOpener extends Module {
         );
 
         if (antiCheatCompat.get()) {
-            // === 发包开箱，Grim 绕过 ===
-            if (canSee(containerPos, itemFrame)) {
-                // 无需转头：容器在视线内，直接发包开箱
-                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
-                    Hand.MAIN_HAND, containerHit, 0
-                ));
-                mc.player.swingHand(Hand.MAIN_HAND);
-            } else {
-                // 需要发包静默转头绕过 Grim 光线追踪
-                float[] rots = calcRotations(hitPos);
-                float prevYaw = mc.player.getYaw();
-                float prevPitch = mc.player.getPitch();
-
-                mc.player.setYaw(rots[0]);
-                mc.player.setPitch(rots[1]);
-
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
-                    rots[0], rots[1], mc.player.isOnGround(), mc.player.horizontalCollision
-                ));
-
-                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
-                    Hand.MAIN_HAND, containerHit, 0
-                ));
-                mc.player.swingHand(Hand.MAIN_HAND);
-
-                mc.player.setYaw(prevYaw);
-                mc.player.setPitch(prevPitch);
-            }
+            // 发包开箱：绕过反作弊客户端限制
+            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
+                Hand.MAIN_HAND, containerHit, 0
+            ));
+            mc.player.swingHand(Hand.MAIN_HAND);
         } else {
             // === 标准模式 ===
             ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
@@ -208,29 +184,6 @@ public class ItemFrameChestOpener extends Module {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
         }
-    }
-
-    private float[] calcRotations(Vec3d target) {
-        Vec3d eye = mc.player.getEyePos();
-        double dx = target.x - eye.x;
-        double dy = target.y - eye.y;
-        double dz = target.z - eye.z;
-        double hDist = Math.sqrt(dx * dx + dz * dz);
-        return new float[]{
-            (float) Math.toDegrees(Math.atan2(-dx, dz)),
-            (float) -Math.toDegrees(Math.atan2(dy, hDist))
-        };
-    }
-
-    /** 检测玩家当前准星是否指向目标容器（兼容准星在展示框实体上的情况） */
-    private boolean canSee(BlockPos containerPos, ItemFrameEntity itemFrame) {
-        if (mc.crosshairTarget instanceof BlockHitResult hit) {
-            return hit.getBlockPos().equals(containerPos);
-        }
-        // 准星在展示框实体上：检查展示框附着方块是否就是目标容器
-        Direction facing = itemFrame.getHorizontalFacing();
-        BlockPos attachedTo = itemFrame.getBlockPos().offset(facing.getOpposite());
-        return attachedTo.equals(containerPos);
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
