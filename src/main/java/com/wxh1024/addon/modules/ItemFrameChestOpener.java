@@ -1,6 +1,7 @@
 package com.wxh1024.addon.modules;
 
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -21,6 +22,7 @@ import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -67,15 +69,27 @@ public class ItemFrameChestOpener extends Module {
             "右键展示框打开展示框后方附着容器。支持位置宽容扫描、反作弊发包绕过。");
     }
 
+    // === 拦截：网络层拦截 PlayerInteractEntityC2SPacket ===
+    @EventHandler
+    private void onPacketSend(PacketEvent.Send event) {
+        if (!interceptEnabled.get()) return;
+        if (!(event.packet instanceof PlayerInteractEntityC2SPacket p)) return;
+
+        // 反射获取 entityId 并检查是否为展示框
+        try {
+            int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+            if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
+                event.cancel();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // === 开箱：InteractEntityEvent 仅负责扫描 + 开箱 ===
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
-        // === 拦截：始终阻止展示框原版交互，不论后面是否找到容器 ===
-        if (interceptEnabled.get()) event.cancel();
-
-        // === 开箱：独立逻辑，与拦截互不依赖 ===
         Direction dir = frame.getHorizontalFacing().getOpposite();
         BlockPos attach = BlockPos.ofFloored(
             frame.getX() + dir.getOffsetX() * 0.5,
