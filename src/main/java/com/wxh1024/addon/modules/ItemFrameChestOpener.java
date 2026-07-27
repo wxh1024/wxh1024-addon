@@ -1,6 +1,5 @@
 package com.wxh1024.addon.modules;
 
-import meteordevelopment.meteorclient.events.entity.player.AttackEntityEvent;
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -96,14 +95,14 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> unconditionalIntercept = sgGeneral.add(new BoolSetting.Builder()
         .name("无条件拦截")
-        .description("开启后，右键展示框不再触发原版交互（旋转物品等），始终尝试开箱。")
+        .description("没找到容器时是否依然拦截展示框交互（不触发旋转物品等原版行为）。")
         .defaultValue(true)
         .build()
     );
 
     private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
         .name("位置宽容")
-        .description("额外穿透距离，0=仅紧贴的容器，1~6=中间隔若干方块也能开箱。")
+        .description("沿附着方向额外穿透距离。0=仅展示框直接附着的方块，1~6=穿透若干方块。")
         .defaultValue(1)
         .min(0)
         .max(6)
@@ -114,48 +113,35 @@ public class ItemFrameChestOpener extends Module {
         super(
             Wxh1024Addon.WXH1024,
             "展示框开箱",
-            "右键/左键展示框打开展示框后方附着容器。支持普通展示框和荧光展示框，位置宽容穿透，无条件拦截。"
+            "右键展示框打开展示框后方附着容器。支持普通/荧光展示框，位置宽容穿透，无条件拦截。"
         );
     }
 
-    /** 右键交互：处理所有展示框类型（ItemFrameEntity / GlowItemFrameEntity） */
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
 
         Entity entity = event.entity;
+        // instanceof ItemFrameEntity 自动匹配普通展示框和荧光展示框 (GlowItemFrameEntity)
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        tryOpenContainer(itemFrame, event);
-    }
-
-    /** 左键攻击：同样重定向为开箱（可选由无条件拦截控制） */
-    @EventHandler
-    private void onAttackEntity(AttackEntityEvent event) {
-        if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
-
-        Entity entity = event.entity;
-        if (!(entity instanceof ItemFrameEntity itemFrame)) return;
-
-        tryOpenContainer(itemFrame, event);
-    }
-
-    /**
-     * 核心逻辑：根据展示框附着方向扫描容器并尝试打开
-     * @param itemFrame 展示框实体（ItemFrameEntity 或 GlowItemFrameEntity）
-     * @param event     可取消的事件（InteractEntityEvent 或 AttackEntityEvent）
-     */
-    private void tryOpenContainer(ItemFrameEntity itemFrame, Object event) {
-        // 根据展示框朝向确定附着方向，沿该方向扫描容器
+        // === 容器定位算法 ===
+        // 展示框朝向 = 脱离墙面方向，附着方向 = 朝向的反方向（指向墙体/附着方块）
         Direction facing = itemFrame.getHorizontalFacing();
         Direction attachmentDir = facing.getOpposite();
-        BlockPos framePos = itemFrame.getBlockPos();
 
-        // 扫描容器：从展示框位置沿附着方向搜索（距离 0 到 1+宽容距离）
+        // 用精确坐标 + 半格偏移可靠计算附着方块位置，兼容墙壁/地面/天花板朝向
+        Vec3d precisePos = itemFrame.getPos();
+        BlockPos attachmentPos = BlockPos.ofFloored(
+            precisePos.getX() + attachmentDir.getOffsetX() * 0.5,
+            precisePos.getY() + attachmentDir.getOffsetY() * 0.5,
+            precisePos.getZ() + attachmentDir.getOffsetZ() * 0.5
+        );
+
+        // 沿附着方向扫描容器（从附着方块开始，按位置宽容穿透）
         BlockPos containerPos = null;
-        int maxDistance = 1 + rangeTolerance.get();
-        for (int dist = 0; dist <= maxDistance; dist++) {
-            BlockPos checkPos = framePos.offset(attachmentDir, dist);
+        for (int dist = 0; dist <= rangeTolerance.get(); dist++) {
+            BlockPos checkPos = attachmentPos.offset(attachmentDir, dist);
             if (isContainerEnabled(mc.world.getBlockEntity(checkPos))) {
                 containerPos = checkPos;
                 break;
@@ -163,7 +149,7 @@ public class ItemFrameChestOpener extends Module {
         }
 
         if (containerPos != null) {
-            // 构造 BlockHitResult，模仿 GhostHand 开箱
+            // GhostHand 风格开箱
             Vec3d hitPos = new Vec3d(
                 containerPos.getX() + 0.5,
                 containerPos.getY() + 0.5,
@@ -176,21 +162,12 @@ public class ItemFrameChestOpener extends Module {
             if (result.isAccepted()) {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
-            cancelEvent(event);
+            event.cancel();
         } else if (unconditionalIntercept.get()) {
-            // 没找到容器但设置了无条件拦截，阻止原版展示框交互
-            cancelEvent(event);
+            // 没找到容器但开了无条件拦截 → 拦截原版展示框交互
+            event.cancel();
         }
-        // 没找到容器且未开无条件拦截 → 不拦截，走原版交互
-    }
-
-    /** 统一取消事件，兼容 InteractEntityEvent 和 AttackEntityEvent */
-    private void cancelEvent(Object event) {
-        if (event instanceof InteractEntityEvent e) {
-            e.cancel();
-        } else if (event instanceof AttackEntityEvent e) {
-            e.cancel();
-        }
+        // 没找到容器且未开无条件拦截 → 走原版右键交互
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
