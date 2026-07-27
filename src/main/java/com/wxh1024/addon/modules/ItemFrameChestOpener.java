@@ -184,14 +184,13 @@ public class ItemFrameChestOpener extends Module {
             }
         }
 
-        // 拦截交互：仅控制是否取消展示框事件
-        if (interceptEnabled.get()) {
-            event.cancel();
+        if (containerPos == null) {
+            // 未找到容器：拦截开关决定是否阻止原版交互
+            if (interceptEnabled.get()) event.cancel();
+            return;
         }
 
-        if (containerPos == null) return;
-
-        // === 防重复冷却 ===
+        // === 防重复冷却（最优先，冷却中放行原版交互） ===
         int cooldownMs;
         if (cooldownMode.get()) {
             cooldownMs = Math.max(getPing() * pingMultiplier.get(), 100);
@@ -200,11 +199,16 @@ public class ItemFrameChestOpener extends Module {
         }
         if (cooldownMs > 0) {
             long now = System.currentTimeMillis();
-            if (now - lastOpenTime < cooldownMs) return;
-            lastOpenTime = now;
+            if (now - lastOpenTime < cooldownMs) return; // 冷却中不放行，不拦截
         }
 
-        // === 反作弊兼容：静默旋转绕过光线追踪检测 ===
+        // === 拦截交互：取消展示框事件 ===
+        if (interceptEnabled.get()) {
+            event.cancel();
+        }
+        lastOpenTime = System.currentTimeMillis();
+
+        // === 反作弊兼容：静默旋转绕过 Grim 光线追踪 ===
         float prevYaw = mc.player.getYaw();
         float prevPitch = mc.player.getPitch();
         if (antiCheatCompat.get()) {
