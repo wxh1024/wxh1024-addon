@@ -108,7 +108,7 @@ public class ItemFrameChestOpener extends Module {
     // --- 拦截控制 ---
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
         .name("拦截交互")
-        .description("总开关。关闭后本模块完全不影响展示框。")
+        .description("是否阻止展示框原版交互。关闭时仅开箱不拦截，展示框仍会旋转物品等。")
         .defaultValue(true)
         .build()
     );
@@ -162,9 +162,6 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
 
-        // 总开关
-        if (!interceptEnabled.get()) return;
-
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
@@ -187,8 +184,10 @@ public class ItemFrameChestOpener extends Module {
             }
         }
 
-        // 拦截事件（找到和未找到都拦截）
-        event.cancel();
+        // 拦截交互：仅控制是否取消展示框事件
+        if (interceptEnabled.get()) {
+            event.cancel();
+        }
 
         if (containerPos == null) return;
 
