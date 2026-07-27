@@ -131,11 +131,10 @@ public class ItemFrameChestOpener extends Module {
         Direction attachmentDir = facing.getOpposite();
 
         // 用精确坐标 + 半格偏移可靠计算附着方块位置，兼容墙壁/地面/天花板朝向
-        Vec3d precisePos = itemFrame.getPos();
         BlockPos attachmentPos = BlockPos.ofFloored(
-            precisePos.getX() + attachmentDir.getOffsetX() * 0.5,
-            precisePos.getY() + attachmentDir.getOffsetY() * 0.5,
-            precisePos.getZ() + attachmentDir.getOffsetZ() * 0.5
+            itemFrame.getX() + attachmentDir.getOffsetX() * 0.5,
+            itemFrame.getY() + attachmentDir.getOffsetY() * 0.5,
+            itemFrame.getZ() + attachmentDir.getOffsetZ() * 0.5
         );
 
         // 沿附着方向线性扫描：从附着方块开始，按位置宽容穿透
