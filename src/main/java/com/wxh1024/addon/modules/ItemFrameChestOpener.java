@@ -174,7 +174,7 @@ public class ItemFrameChestOpener extends Module {
 
         if (antiCheatCompat.get()) {
             // === 发包开箱，Grim 绕过 ===
-            if (canSee(containerPos)) {
+            if (canSee(containerPos, itemFrame)) {
                 // 无需转头：容器在视线内，直接发包开箱
                 mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
                     Hand.MAIN_HAND, containerHit, 0
@@ -222,12 +222,15 @@ public class ItemFrameChestOpener extends Module {
         };
     }
 
-    /** 检测玩家当前准星是否指向目标容器（不检测遮挡，仅判断视线方向） */
-    private boolean canSee(BlockPos containerPos) {
+    /** 检测玩家当前准星是否指向目标容器（兼容准星在展示框实体上的情况） */
+    private boolean canSee(BlockPos containerPos, ItemFrameEntity itemFrame) {
         if (mc.crosshairTarget instanceof BlockHitResult hit) {
             return hit.getBlockPos().equals(containerPos);
         }
-        return false;
+        // 准星在展示框实体上：检查展示框附着方块是否就是目标容器
+        Direction facing = itemFrame.getHorizontalFacing();
+        BlockPos attachedTo = itemFrame.getBlockPos().offset(facing.getOpposite());
+        return attachedTo.equals(containerPos);
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
