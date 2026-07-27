@@ -122,8 +122,9 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
-    /** 拦截窗口，此时间戳后的 50ms 内过滤实体交互包 */
-    private long interceptWindow = 0;
+    /** 当前正在拦截的展示框实体 ID + 超时时间戳 */
+    private int interceptFrameId = -1;
+    private long interceptExpire = 0;
 
     public ItemFrameChestOpener() {
         super(
@@ -133,12 +134,23 @@ public class ItemFrameChestOpener extends Module {
         );
     }
 
-    /** 双保险：拦截窗口内的实体交互包（防止 cancel 事件残留） */
+    /** 双保险：精确过滤被拦截展示框的交互包，2秒超时自动清除 */
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
-        if (System.currentTimeMillis() - interceptWindow > 50) return;
-        if (event.packet instanceof PlayerInteractEntityC2SPacket) {
-            event.cancel();
+        if (interceptFrameId < 0) return;
+        // 超时清除
+        if (System.currentTimeMillis() - interceptExpire > 2000) {
+            interceptFrameId = -1;
+            return;
+        }
+        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
+            try {
+                int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+                if (id == interceptFrameId) {
+                    event.cancel();
+                    interceptFrameId = -1;
+                }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -149,10 +161,11 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // 拦截交互：取消事件 + 开启 50ms 拦截窗口双保险过滤残留包
+        // 拦截交互：取消事件 + 记录实体ID用于双保险精确过滤（2秒后自动清除）
         if (interceptEnabled.get()) {
             event.cancel();
-            interceptWindow = System.currentTimeMillis();
+            interceptFrameId = itemFrame.getId();
+            interceptExpire = System.currentTimeMillis();
         }
 
         // === 定位附着方块 ===
