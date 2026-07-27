@@ -138,6 +138,11 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
+        // 彻底拦截：第一时间取消事件，阻止挥臂动画、交互包等任何原版侧漏
+        if (interceptEnabled.get()) {
+            event.cancel();
+        }
+
         // === 定位附着方块 ===
         Direction facing = itemFrame.getHorizontalFacing();
         Direction attachmentDir = facing.getOpposite();
@@ -156,11 +161,6 @@ public class ItemFrameChestOpener extends Module {
                 containerPos = checkPos;
                 break; // 找到即停止
             }
-        }
-
-        // 无条件拦截展示框交互
-        if (interceptEnabled.get()) {
-            event.cancel();
         }
 
         if (containerPos == null) return;
