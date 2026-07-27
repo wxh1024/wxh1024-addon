@@ -18,7 +18,6 @@ import net.minecraft.block.entity.EnderChestBlockEntity;
 import net.minecraft.block.entity.FurnaceBlockEntity;
 import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
-import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.util.ActionResult;
@@ -98,63 +97,33 @@ public class ItemFrameChestOpener extends Module {
     // --- 定位 ---
     private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
         .name("位置宽容")
-        .description("沿附着方向额外穿透格数。0=仅附着方块，1~6=穿透若干方块。")
+        .description("沿附着方向穿透扫描格数。0=仅附着方块，1~6=穿透若干方块。")
         .defaultValue(1)
         .min(0)
         .max(6)
         .build()
     );
 
-    // --- 拦截控制 ---
+    // --- 交互控制 ---
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
         .name("拦截交互")
-        .description("是否阻止展示框原版交互。关闭时仅开箱不拦截，展示框仍会旋转物品等。")
+        .description("是否阻止展示框原版交互。关闭时仅开箱不拦截。")
         .defaultValue(true)
         .build()
     );
 
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
         .name("反作弊兼容")
-        .description("开启后静默旋转视角使容器交互通过 Grim 等反作弊的光线追踪检测。")
+        .description("静默旋转视角使容器交互通过 Grim 等反作弊的光线追踪检测。")
         .defaultValue(false)
         .build()
     );
-
-    // --- 防重复 ---
-    private final Setting<Boolean> cooldownMode = sgGeneral.add(new BoolSetting.Builder()
-        .name("延迟模式")
-        .description("开启=动态延迟（根据ping自动调整），关闭=自定义延迟（手动设置毫秒）。")
-        .defaultValue(true)
-        .build()
-    );
-
-    private final Setting<Integer> pingMultiplier = sgGeneral.add(new IntSetting.Builder()
-        .name("延迟倍率")
-        .description("动态延迟的 ping 倍率。冷却时间 = ping × 倍率（最低 100ms）。")
-        .defaultValue(2)
-        .min(1)
-        .max(10)
-        .visible(() -> cooldownMode.get())
-        .build()
-    );
-
-    private final Setting<Integer> customCooldown = sgGeneral.add(new IntSetting.Builder()
-        .name("自定义延迟")
-        .description("手动设置防重复冷却时间（毫秒）。0=不限制。")
-        .defaultValue(300)
-        .min(0)
-        .max(5000)
-        .visible(() -> !cooldownMode.get())
-        .build()
-    );
-
-    private long lastOpenTime = 0;
 
     public ItemFrameChestOpener() {
         super(
             Wxh1024Addon.WXH1024,
             "展示框开箱",
-            "右键展示框打开展示框后方附着容器。支持反作弊兼容、动态延迟、位置宽容。"
+            "右键展示框打开展示框后方附着容器。支持反作弊兼容、位置宽容。"
         );
     }
 
@@ -165,7 +134,7 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // === 容器定位 ===
+        // === 定位附着方块 ===
         Direction facing = itemFrame.getHorizontalFacing();
         Direction attachmentDir = facing.getOpposite();
         BlockPos attachmentPos = BlockPos.ofFloored(
@@ -174,41 +143,28 @@ public class ItemFrameChestOpener extends Module {
             itemFrame.getZ() + attachmentDir.getOffsetZ() * 0.5
         );
 
+        // === 沿附着方向扫描，找到第一个容器就停止 ===
         BlockPos containerPos = null;
         int maxDist = rangeTolerance.get();
         for (int dist = 0; dist <= maxDist; dist++) {
             BlockPos checkPos = attachmentPos.offset(attachmentDir, dist);
             if (isContainerEnabled(mc.world.getBlockEntity(checkPos))) {
                 containerPos = checkPos;
-                break;
+                break; // 找到即停止
             }
         }
 
         if (containerPos == null) {
-            // 未找到容器：拦截开关决定是否阻止原版交互
             if (interceptEnabled.get()) event.cancel();
             return;
         }
 
-        // === 防重复冷却（最优先，冷却中放行原版交互） ===
-        int cooldownMs;
-        if (cooldownMode.get()) {
-            cooldownMs = Math.max(getPing() * pingMultiplier.get(), 100);
-        } else {
-            cooldownMs = customCooldown.get();
-        }
-        if (cooldownMs > 0) {
-            long now = System.currentTimeMillis();
-            if (now - lastOpenTime < cooldownMs) return; // 冷却中不放行，不拦截
-        }
-
-        // === 拦截交互：取消展示框事件 ===
+        // === 拦截交互 ===
         if (interceptEnabled.get()) {
             event.cancel();
         }
-        lastOpenTime = System.currentTimeMillis();
 
-        // === 反作弊兼容：静默旋转绕过 Grim 光线追踪 ===
+        // === 反作弊兼容：静默旋转绕过光线追踪 ===
         float prevYaw = mc.player.getYaw();
         float prevPitch = mc.player.getPitch();
         if (antiCheatCompat.get()) {
@@ -243,7 +199,6 @@ public class ItemFrameChestOpener extends Module {
         }
     }
 
-    /** 计算看向目标方块所需的 yaw/pitch */
     private float[] calcRotations(Vec3d target) {
         Vec3d eye = mc.player.getEyePos();
         double dx = target.x - eye.x;
@@ -254,12 +209,6 @@ public class ItemFrameChestOpener extends Module {
             (float) Math.toDegrees(Math.atan2(-dx, dz)),
             (float) -Math.toDegrees(Math.atan2(dy, hDist))
         };
-    }
-
-    private int getPing() {
-        if (mc.player == null || mc.getNetworkHandler() == null) return 300;
-        PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
-        return entry != null ? entry.getLatency() : 300;
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
