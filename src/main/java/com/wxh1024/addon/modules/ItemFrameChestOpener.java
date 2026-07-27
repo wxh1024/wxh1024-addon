@@ -72,10 +72,10 @@ public class ItemFrameChestOpener extends Module {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
-        // ① 拦截展示框交互：取消事件，阻止原版处理
+        // === 拦截：始终阻止展示框原版交互，不论后面是否找到容器 ===
         if (interceptEnabled.get()) event.cancel();
 
-        // ② 定位附着方块 + 扫描容器
+        // === 开箱：独立逻辑，与拦截互不依赖 ===
         Direction dir = frame.getHorizontalFacing().getOpposite();
         BlockPos attach = BlockPos.ofFloored(
             frame.getX() + dir.getOffsetX() * 0.5,
@@ -90,13 +90,11 @@ public class ItemFrameChestOpener extends Module {
             }
         }
         if (container == null) return;
-
-        // ③ 二次确认 + 构造 hit
         if (!isContainerEnabled(mc.world.getBlockEntity(container))) return;
+
         Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
         BlockHitResult hit = new BlockHitResult(pos, Direction.UP, container, false);
 
-        // ④ 开箱
         if (antiCheatCompat.get()) {
             mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
         } else {
