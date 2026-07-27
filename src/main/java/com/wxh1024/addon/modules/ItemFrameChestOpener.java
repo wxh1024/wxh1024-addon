@@ -109,7 +109,7 @@ public class ItemFrameChestOpener extends Module {
     // --- 交互控制 ---
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
         .name("拦截交互")
-        .description("是否阻止展示框原版交互。关闭时仅开箱不拦截。")
+        .description("阻止展示框原版交互（旋转物品、放置物品、挥手动画）。关闭时仅开箱不拦截。")
         .defaultValue(true)
         .build()
     );
