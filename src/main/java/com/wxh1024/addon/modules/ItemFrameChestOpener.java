@@ -109,6 +109,20 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
+    private final Setting<Boolean> preCancel = sgGeneral.add(new BoolSetting.Builder()
+        .name("提前拦截")
+        .description("先拦截展示框事件再开箱，防止原版交互与开箱冲突。")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> preventRepeat = sgGeneral.add(new BoolSetting.Builder()
+        .name("防重复触发")
+        .description("300ms 内不重复开箱，防止连点/按住右键时多次触发。")
+        .defaultValue(true)
+        .build()
+    );
+
     private long lastOpenTime = 0;
 
     public ItemFrameChestOpener() {
@@ -151,13 +165,17 @@ public class ItemFrameChestOpener extends Module {
         }
 
         if (containerPos != null) {
-            // 先拦截事件，防止原版交互与开箱冲突导致重复触发
-            event.cancel();
+            // 提前拦截：先取消事件防止原版交互冲突（可开关）
+            if (preCancel.get()) {
+                event.cancel();
+            }
 
-            // 防连点：300ms 内不重复开箱
-            long now = System.currentTimeMillis();
-            if (now - lastOpenTime < 300) return;
-            lastOpenTime = now;
+            // 防重复：300ms 冷却（可开关）
+            if (preventRepeat.get()) {
+                long now = System.currentTimeMillis();
+                if (now - lastOpenTime < 300) return;
+                lastOpenTime = now;
+            }
 
             // GhostHand 风格开箱
             Vec3d hitPos = new Vec3d(
@@ -171,6 +189,10 @@ public class ItemFrameChestOpener extends Module {
             ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
             if (result.isAccepted()) {
                 mc.player.swingHand(Hand.MAIN_HAND);
+            }
+            // 未开启提前拦截时，延迟取消
+            if (!preCancel.get()) {
+                event.cancel();
             }
         } else if (unconditionalIntercept.get()) {
             // 没找到容器但开了无条件拦截 → 拦截原版展示框交互
