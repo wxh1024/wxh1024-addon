@@ -121,10 +121,20 @@ public class ItemFrameChestOpener extends Module {
     );
 
     // --- 防重复 ---
-    private final Setting<Boolean> dynamicCooldown = sgGeneral.add(new BoolSetting.Builder()
-        .name("动态延迟")
-        .description("防重复冷却根据网络延迟（ping）自动调整。关闭则使用下方自定义值。")
+    private final Setting<Boolean> cooldownMode = sgGeneral.add(new BoolSetting.Builder()
+        .name("延迟模式")
+        .description("开启=动态延迟（根据ping自动调整），关闭=自定义延迟（手动设置毫秒）。")
         .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> pingMultiplier = sgGeneral.add(new IntSetting.Builder()
+        .name("延迟倍率")
+        .description("动态延迟的 ping 倍率。冷却时间 = ping × 倍率（最低 100ms）。")
+        .defaultValue(2)
+        .min(1)
+        .max(10)
+        .visible(() -> cooldownMode.get())
         .build()
     );
 
@@ -134,7 +144,7 @@ public class ItemFrameChestOpener extends Module {
         .defaultValue(300)
         .min(0)
         .max(5000)
-        .visible(() -> !dynamicCooldown.get())
+        .visible(() -> !cooldownMode.get())
         .build()
     );
 
@@ -184,8 +194,8 @@ public class ItemFrameChestOpener extends Module {
 
         // === 防重复冷却 ===
         int cooldownMs;
-        if (dynamicCooldown.get()) {
-            cooldownMs = Math.max(getPing() * 2, 100);
+        if (cooldownMode.get()) {
+            cooldownMs = Math.max(getPing() * pingMultiplier.get(), 100);
         } else {
             cooldownMs = customCooldown.get();
         }
