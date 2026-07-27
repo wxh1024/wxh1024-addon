@@ -115,7 +115,7 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
         .name("反作弊兼容")
-        .description("适配 Grim 等反作弊：不取消展示框事件，改为双包并行使交互不被标记异常。")
+        .description("开启后静默旋转视角使容器交互通过 Grim 等反作弊的光线追踪检测。")
         .defaultValue(false)
         .build()
     );
@@ -152,11 +152,10 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
 
-        // 总开关：不拦截时直接放行
+        // 总开关
         if (!interceptEnabled.get()) return;
 
         Entity entity = event.entity;
-        // instanceof ItemFrameEntity 自动匹配普通展示框和荧光展示框 (GlowItemFrameEntity)
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
         // === 容器定位 ===
@@ -168,7 +167,6 @@ public class ItemFrameChestOpener extends Module {
             itemFrame.getZ() + attachmentDir.getOffsetZ() * 0.5
         );
 
-        // 扫描容器
         BlockPos containerPos = null;
         int maxDist = rangeTolerance.get();
         for (int dist = 0; dist <= maxDist; dist++) {
@@ -179,47 +177,72 @@ public class ItemFrameChestOpener extends Module {
             }
         }
 
-        if (containerPos != null) {
-            // --- 找到容器：开箱 ---
-            boolean grim = antiCheatCompat.get();
+        // 拦截事件（找到和未找到都拦截）
+        event.cancel();
 
-            // 防重复冷却
-            if (dynamicCooldown.get() || customCooldown.get() > 0) {
-                int cooldownMs = dynamicCooldown.get() ? Math.max(getPing() * 2, 100) : customCooldown.get();
-                long now = System.currentTimeMillis();
-                if (now - lastOpenTime < cooldownMs) {
-                    if (!grim) event.cancel(); // 标准模式：拦截但不重复开箱
-                    return;
-                }
-                lastOpenTime = now;
-            }
+        if (containerPos == null) return;
 
-            // 标准模式：提前取消事件
-            if (!grim) event.cancel();
+        // === 防重复冷却 ===
+        int cooldownMs;
+        if (dynamicCooldown.get()) {
+            cooldownMs = Math.max(getPing() * 2, 100);
+        } else {
+            cooldownMs = customCooldown.get();
+        }
+        if (cooldownMs > 0) {
+            long now = System.currentTimeMillis();
+            if (now - lastOpenTime < cooldownMs) return;
+            lastOpenTime = now;
+        }
 
-            // GhostHand 风格开箱
-            Vec3d hitPos = new Vec3d(
+        // === 反作弊兼容：静默旋转绕过光线追踪检测 ===
+        float prevYaw = mc.player.getYaw();
+        float prevPitch = mc.player.getPitch();
+        if (antiCheatCompat.get()) {
+            Vec3d target = new Vec3d(
                 containerPos.getX() + 0.5,
                 containerPos.getY() + 0.5,
                 containerPos.getZ() + 0.5
             );
-            BlockHitResult containerHit = new BlockHitResult(
-                hitPos, Direction.UP, containerPos, false
-            );
-            ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
-            if (result.isAccepted()) {
-                mc.player.swingHand(Hand.MAIN_HAND);
-            }
-        } else {
-            // --- 未找到容器：无条件拦截（固定行为） ---
-            if (!antiCheatCompat.get()) {
-                event.cancel();
-            }
-            // Grim 兼容模式下不拦截，走原版展示框交互
+            float[] rots = calcRotations(target);
+            mc.player.setYaw(rots[0]);
+            mc.player.setPitch(rots[1]);
+        }
+
+        // === 开箱 ===
+        Vec3d hitPos = new Vec3d(
+            containerPos.getX() + 0.5,
+            containerPos.getY() + 0.5,
+            containerPos.getZ() + 0.5
+        );
+        BlockHitResult containerHit = new BlockHitResult(
+            hitPos, Direction.UP, containerPos, false
+        );
+        ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
+        if (result.isAccepted()) {
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
+
+        // 恢复视角
+        if (antiCheatCompat.get()) {
+            mc.player.setYaw(prevYaw);
+            mc.player.setPitch(prevPitch);
         }
     }
 
-    /** 获取当前网络延迟（毫秒），用于动态冷却计算 */
+    /** 计算看向目标方块所需的 yaw/pitch */
+    private float[] calcRotations(Vec3d target) {
+        Vec3d eye = mc.player.getEyePos();
+        double dx = target.x - eye.x;
+        double dy = target.y - eye.y;
+        double dz = target.z - eye.z;
+        double hDist = Math.sqrt(dx * dx + dz * dz);
+        return new float[]{
+            (float) Math.toDegrees(Math.atan2(-dx, dz)),
+            (float) -Math.toDegrees(Math.atan2(dy, hDist))
+        };
+    }
+
     private int getPing() {
         if (mc.player == null || mc.getNetworkHandler() == null) return 300;
         PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
