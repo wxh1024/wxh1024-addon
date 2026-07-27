@@ -102,7 +102,7 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
         .name("位置宽容")
-        .description("沿附着方向额外穿透距离。0=仅展示框直接附着的方块，1~6=穿透若干方块。")
+        .description("搜索半径（曼哈顿距离）。0=仅附着方块，1~6=三维搜索周围容器，适配紧密排列的大量箱子。")
         .defaultValue(1)
         .min(0)
         .max(6)
@@ -138,13 +138,23 @@ public class ItemFrameChestOpener extends Module {
             precisePos.getZ() + attachmentDir.getOffsetZ() * 0.5
         );
 
-        // 沿附着方向扫描容器（从附着方块开始，按位置宽容穿透）
+        // 三维曼哈顿距离球壳搜索：从附着点向外逐层扫描
+        // 适配大量箱子紧密排列的环境（展示框可能夹在箱子之间的非容器方块上）
+        int tolerance = rangeTolerance.get();
         BlockPos containerPos = null;
-        for (int dist = 0; dist <= rangeTolerance.get(); dist++) {
-            BlockPos checkPos = attachmentPos.offset(attachmentDir, dist);
-            if (isContainerEnabled(mc.world.getBlockEntity(checkPos))) {
-                containerPos = checkPos;
-                break;
+        search:
+        for (int r = 0; r <= tolerance; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dy = -r; dy <= r; dy++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != r) continue;
+                        BlockPos checkPos = attachmentPos.add(dx, dy, dz);
+                        if (isContainerEnabled(mc.world.getBlockEntity(checkPos))) {
+                            containerPos = checkPos;
+                            break search;
+                        }
+                    }
+                }
             }
         }
 
