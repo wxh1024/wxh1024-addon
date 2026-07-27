@@ -25,11 +25,9 @@ import net.minecraft.util.Hand;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
 
 public class ItemFrameChestOpener extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -224,22 +222,12 @@ public class ItemFrameChestOpener extends Module {
         };
     }
 
-    /** 射线检测玩家视线是否直接可达目标容器，不需要转头则跳过发包旋转 */
+    /** 检测玩家当前准星是否指向目标容器（不检测遮挡，仅判断视线方向） */
     private boolean canSee(BlockPos containerPos) {
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d target = new Vec3d(
-            containerPos.getX() + 0.5,
-            containerPos.getY() + 0.5,
-            containerPos.getZ() + 0.5
-        );
-        BlockHitResult hit = mc.world.raycast(new RaycastContext(
-            eye, target,
-            RaycastContext.ShapeType.COLLIDER,
-            RaycastContext.FluidHandling.NONE,
-            mc.player
-        ));
-        return hit.getType() != HitResult.Type.MISS
-            && hit.getBlockPos().equals(containerPos);
+        if (mc.crosshairTarget instanceof BlockHitResult hit) {
+            return hit.getBlockPos().equals(containerPos);
+        }
+        return false;
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
