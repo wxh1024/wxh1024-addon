@@ -22,6 +22,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -154,31 +156,13 @@ public class ItemFrameChestOpener extends Module {
             }
         }
 
-        if (containerPos == null) {
-            if (interceptEnabled.get()) event.cancel();
-            return;
-        }
-
-        // === 拦截交互 ===
+        // 无条件拦截展示框交互
         if (interceptEnabled.get()) {
             event.cancel();
         }
 
-        // === 反作弊兼容：静默旋转绕过光线追踪 ===
-        float prevYaw = mc.player.getYaw();
-        float prevPitch = mc.player.getPitch();
-        if (antiCheatCompat.get()) {
-            Vec3d target = new Vec3d(
-                containerPos.getX() + 0.5,
-                containerPos.getY() + 0.5,
-                containerPos.getZ() + 0.5
-            );
-            float[] rots = calcRotations(target);
-            mc.player.setYaw(rots[0]);
-            mc.player.setPitch(rots[1]);
-        }
+        if (containerPos == null) return;
 
-        // === 开箱 ===
         Vec3d hitPos = new Vec3d(
             containerPos.getX() + 0.5,
             containerPos.getY() + 0.5,
@@ -187,15 +171,36 @@ public class ItemFrameChestOpener extends Module {
         BlockHitResult containerHit = new BlockHitResult(
             hitPos, Direction.UP, containerPos, false
         );
-        ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
-        if (result.isAccepted()) {
-            mc.player.swingHand(Hand.MAIN_HAND);
-        }
 
-        // 恢复视角
         if (antiCheatCompat.get()) {
+            // === 发包静默转头 + 发包开箱，避免 Grim 检测 ===
+            float[] rots = calcRotations(hitPos);
+            float prevYaw = mc.player.getYaw();
+            float prevPitch = mc.player.getPitch();
+
+            mc.player.setYaw(rots[0]);
+            mc.player.setPitch(rots[1]);
+
+            // 发包同步服务端视角（Grim 光线追踪校验需要通过）
+            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                rots[0], rots[1], mc.player.isOnGround(), mc.player.horizontalCollision
+            ));
+
+            // 发包开箱
+            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
+                Hand.MAIN_HAND, containerHit, 0
+            ));
+            mc.player.swingHand(Hand.MAIN_HAND);
+
+            // 恢复客户端视角（服务端下个 tick 自动恢复原视角）
             mc.player.setYaw(prevYaw);
             mc.player.setPitch(prevPitch);
+        } else {
+            // === 标准模式 ===
+            ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
+            if (result.isAccepted()) {
+                mc.player.swingHand(Hand.MAIN_HAND);
+            }
         }
     }
 
