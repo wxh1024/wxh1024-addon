@@ -1,6 +1,7 @@
 package com.wxh1024.addon.modules;
 
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -23,6 +24,7 @@ import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -120,12 +122,24 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
+    /** 拦截窗口，此时间戳后的 50ms 内过滤实体交互包 */
+    private long interceptWindow = 0;
+
     public ItemFrameChestOpener() {
         super(
             Wxh1024Addon.WXH1024,
             "展示框开箱",
             "右键展示框打开展示框后方附着容器。支持位置宽容扫描、反作弊发包绕过。"
         );
+    }
+
+    /** 双保险：拦截窗口内的实体交互包（防止 cancel 事件残留） */
+    @EventHandler
+    private void onSendPacket(PacketEvent.Send event) {
+        if (System.currentTimeMillis() - interceptWindow > 50) return;
+        if (event.packet instanceof PlayerInteractEntityC2SPacket) {
+            event.cancel();
+        }
     }
 
     @EventHandler
@@ -135,9 +149,10 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // 拦截交互：取消事件阻止展示框原版交互（两种模式均生效）
+        // 拦截交互：取消事件 + 开启 50ms 拦截窗口双保险过滤残留包
         if (interceptEnabled.get()) {
             event.cancel();
+            interceptWindow = System.currentTimeMillis();
         }
 
         // === 定位附着方块 ===
