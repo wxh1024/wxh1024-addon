@@ -18,6 +18,7 @@ import net.minecraft.block.entity.EnderChestBlockEntity;
 import net.minecraft.block.entity.FurnaceBlockEntity;
 import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.util.ActionResult;
@@ -30,6 +31,7 @@ import net.minecraft.util.math.Vec3d;
 public class ItemFrameChestOpener extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
+    // --- 容器开关 ---
     private final Setting<Boolean> chests = sgGeneral.add(new BoolSetting.Builder()
         .name("箱子")
         .description("开启箱子 / 陷阱箱")
@@ -93,13 +95,7 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
-    private final Setting<Boolean> unconditionalIntercept = sgGeneral.add(new BoolSetting.Builder()
-        .name("无条件拦截")
-        .description("没找到容器时是否依然拦截展示框交互（不触发旋转物品等原版行为）。")
-        .defaultValue(true)
-        .build()
-    );
-
+    // --- 定位 ---
     private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
         .name("位置宽容")
         .description("沿附着方向额外穿透格数。0=仅附着方块，1~6=穿透若干方块。")
@@ -109,17 +105,36 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
-    private final Setting<Boolean> preCancel = sgGeneral.add(new BoolSetting.Builder()
-        .name("提前拦截")
-        .description("先拦截展示框事件再开箱，防止原版交互与开箱冲突。")
+    // --- 拦截控制 ---
+    private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
+        .name("拦截交互")
+        .description("总开关。关闭后本模块完全不影响展示框。")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> preventRepeat = sgGeneral.add(new BoolSetting.Builder()
-        .name("防重复触发")
-        .description("300ms 内不重复开箱，防止连点/按住右键时多次触发。")
+    private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
+        .name("反作弊兼容")
+        .description("适配 Grim 等反作弊：不取消展示框事件，改为双包并行使交互不被标记异常。")
+        .defaultValue(false)
+        .build()
+    );
+
+    // --- 防重复 ---
+    private final Setting<Boolean> dynamicCooldown = sgGeneral.add(new BoolSetting.Builder()
+        .name("动态延迟")
+        .description("防重复冷却根据网络延迟（ping）自动调整。关闭则使用下方自定义值。")
         .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> customCooldown = sgGeneral.add(new IntSetting.Builder()
+        .name("自定义延迟")
+        .description("手动设置防重复冷却时间（毫秒）。0=不限制。")
+        .defaultValue(300)
+        .min(0)
+        .max(5000)
+        .visible(() -> !dynamicCooldown.get())
         .build()
     );
 
@@ -129,7 +144,7 @@ public class ItemFrameChestOpener extends Module {
         super(
             Wxh1024Addon.WXH1024,
             "展示框开箱",
-            "右键展示框打开展示框后方附着容器。支持普通/荧光展示框，位置宽容穿透，无条件拦截。"
+            "右键展示框打开展示框后方附着容器。支持反作弊兼容、动态延迟、位置宽容。"
         );
     }
 
@@ -137,23 +152,23 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
 
+        // 总开关：不拦截时直接放行
+        if (!interceptEnabled.get()) return;
+
         Entity entity = event.entity;
         // instanceof ItemFrameEntity 自动匹配普通展示框和荧光展示框 (GlowItemFrameEntity)
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // === 容器定位算法 ===
-        // 展示框朝向 = 脱离墙面方向，附着方向 = 朝向的反方向（指向墙体/附着方块）
+        // === 容器定位 ===
         Direction facing = itemFrame.getHorizontalFacing();
         Direction attachmentDir = facing.getOpposite();
-
-        // 用精确坐标 + 半格偏移可靠计算附着方块位置，兼容墙壁/地面/天花板朝向
         BlockPos attachmentPos = BlockPos.ofFloored(
             itemFrame.getX() + attachmentDir.getOffsetX() * 0.5,
             itemFrame.getY() + attachmentDir.getOffsetY() * 0.5,
             itemFrame.getZ() + attachmentDir.getOffsetZ() * 0.5
         );
 
-        // 沿附着方向线性扫描：从附着方块开始，按位置宽容穿透
+        // 扫描容器
         BlockPos containerPos = null;
         int maxDist = rangeTolerance.get();
         for (int dist = 0; dist <= maxDist; dist++) {
@@ -165,17 +180,22 @@ public class ItemFrameChestOpener extends Module {
         }
 
         if (containerPos != null) {
-            // 提前拦截：先取消事件防止原版交互冲突（可开关）
-            if (preCancel.get()) {
-                event.cancel();
-            }
+            // --- 找到容器：开箱 ---
+            boolean grim = antiCheatCompat.get();
 
-            // 防重复：300ms 冷却（可开关）
-            if (preventRepeat.get()) {
+            // 防重复冷却
+            if (dynamicCooldown.get() || customCooldown.get() > 0) {
+                int cooldownMs = dynamicCooldown.get() ? Math.max(getPing() * 2, 100) : customCooldown.get();
                 long now = System.currentTimeMillis();
-                if (now - lastOpenTime < 300) return;
+                if (now - lastOpenTime < cooldownMs) {
+                    if (!grim) event.cancel(); // 标准模式：拦截但不重复开箱
+                    return;
+                }
                 lastOpenTime = now;
             }
+
+            // 标准模式：提前取消事件
+            if (!grim) event.cancel();
 
             // GhostHand 风格开箱
             Vec3d hitPos = new Vec3d(
@@ -190,15 +210,20 @@ public class ItemFrameChestOpener extends Module {
             if (result.isAccepted()) {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
-            // 未开启提前拦截时，延迟取消
-            if (!preCancel.get()) {
+        } else {
+            // --- 未找到容器：无条件拦截（固定行为） ---
+            if (!antiCheatCompat.get()) {
                 event.cancel();
             }
-        } else if (unconditionalIntercept.get()) {
-            // 没找到容器但开了无条件拦截 → 拦截原版展示框交互
-            event.cancel();
+            // Grim 兼容模式下不拦截，走原版展示框交互
         }
-        // 没找到容器且未开无条件拦截 → 走原版右键交互
+    }
+
+    /** 获取当前网络延迟（毫秒），用于动态冷却计算 */
+    private int getPing() {
+        if (mc.player == null || mc.getNetworkHandler() == null) return 300;
+        PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
+        return entry != null ? entry.getLatency() : 300;
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
