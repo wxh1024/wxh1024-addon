@@ -109,6 +109,8 @@ public class ItemFrameChestOpener extends Module {
         .build()
     );
 
+    private long lastOpenTime = 0;
+
     public ItemFrameChestOpener() {
         super(
             Wxh1024Addon.WXH1024,
@@ -149,6 +151,14 @@ public class ItemFrameChestOpener extends Module {
         }
 
         if (containerPos != null) {
+            // 先拦截事件，防止原版交互与开箱冲突导致重复触发
+            event.cancel();
+
+            // 防连点：300ms 内不重复开箱
+            long now = System.currentTimeMillis();
+            if (now - lastOpenTime < 300) return;
+            lastOpenTime = now;
+
             // GhostHand 风格开箱
             Vec3d hitPos = new Vec3d(
                 containerPos.getX() + 0.5,
@@ -162,7 +172,6 @@ public class ItemFrameChestOpener extends Module {
             if (result.isAccepted()) {
                 mc.player.swingHand(Hand.MAIN_HAND);
             }
-            event.cancel();
         } else if (unconditionalIntercept.get()) {
             // 没找到容器但开了无条件拦截 → 拦截原版展示框交互
             event.cancel();
