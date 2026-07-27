@@ -25,9 +25,11 @@ import net.minecraft.util.Hand;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
 
 public class ItemFrameChestOpener extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -173,28 +175,34 @@ public class ItemFrameChestOpener extends Module {
         );
 
         if (antiCheatCompat.get()) {
-            // === 发包静默转头 + 发包开箱，避免 Grim 检测 ===
-            float[] rots = calcRotations(hitPos);
-            float prevYaw = mc.player.getYaw();
-            float prevPitch = mc.player.getPitch();
+            // === 发包开箱，Grim 绕过 ===
+            if (canSee(containerPos)) {
+                // 无需转头：容器在视线内，直接发包开箱
+                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
+                    Hand.MAIN_HAND, containerHit, 0
+                ));
+                mc.player.swingHand(Hand.MAIN_HAND);
+            } else {
+                // 需要发包静默转头绕过 Grim 光线追踪
+                float[] rots = calcRotations(hitPos);
+                float prevYaw = mc.player.getYaw();
+                float prevPitch = mc.player.getPitch();
 
-            mc.player.setYaw(rots[0]);
-            mc.player.setPitch(rots[1]);
+                mc.player.setYaw(rots[0]);
+                mc.player.setPitch(rots[1]);
 
-            // 发包同步服务端视角（Grim 光线追踪校验需要通过）
-            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
-                rots[0], rots[1], mc.player.isOnGround(), mc.player.horizontalCollision
-            ));
+                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                    rots[0], rots[1], mc.player.isOnGround(), mc.player.horizontalCollision
+                ));
 
-            // 发包开箱
-            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
-                Hand.MAIN_HAND, containerHit, 0
-            ));
-            mc.player.swingHand(Hand.MAIN_HAND);
+                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
+                    Hand.MAIN_HAND, containerHit, 0
+                ));
+                mc.player.swingHand(Hand.MAIN_HAND);
 
-            // 恢复客户端视角（服务端下个 tick 自动恢复原视角）
-            mc.player.setYaw(prevYaw);
-            mc.player.setPitch(prevPitch);
+                mc.player.setYaw(prevYaw);
+                mc.player.setPitch(prevPitch);
+            }
         } else {
             // === 标准模式 ===
             ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
@@ -214,6 +222,24 @@ public class ItemFrameChestOpener extends Module {
             (float) Math.toDegrees(Math.atan2(-dx, dz)),
             (float) -Math.toDegrees(Math.atan2(dy, hDist))
         };
+    }
+
+    /** 射线检测玩家视线是否直接可达目标容器，不需要转头则跳过发包旋转 */
+    private boolean canSee(BlockPos containerPos) {
+        Vec3d eye = mc.player.getEyePos();
+        Vec3d target = new Vec3d(
+            containerPos.getX() + 0.5,
+            containerPos.getY() + 0.5,
+            containerPos.getZ() + 0.5
+        );
+        BlockHitResult hit = mc.world.raycast(new RaycastContext(
+            eye, target,
+            RaycastContext.ShapeType.COLLIDER,
+            RaycastContext.FluidHandling.NONE,
+            mc.player
+        ));
+        return hit.getType() != HitResult.Type.MISS
+            && hit.getBlockPos().equals(containerPos);
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
