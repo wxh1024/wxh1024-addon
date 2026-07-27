@@ -108,14 +108,14 @@ public class ItemFrameChestOpener extends Module {
     // --- 交互控制 ---
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
         .name("拦截交互")
-        .description("阻止展示框原版交互（旋转物品、放置物品、挥手动画）。关闭时仅开箱不拦截。")
+        .description("阻止展示框原版交互（旋转物品、放置物品、挥手动画）。标准和反作弊模式均生效。")
         .defaultValue(true)
         .build()
     );
 
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
         .name("反作弊兼容")
-        .description("静默旋转视角使容器交互通过 Grim 等反作弊的光线追踪检测。")
+        .description("不取消展示框事件，使其交互包正常发送以绕过反作弊客户端检测。同时发包开箱，双包并行。")
         .defaultValue(false)
         .build()
     );
@@ -124,7 +124,7 @@ public class ItemFrameChestOpener extends Module {
         super(
             Wxh1024Addon.WXH1024,
             "展示框开箱",
-            "右键展示框打开展示框后方附着容器。支持反作弊兼容、位置宽容。"
+            "右键展示框打开展示框后方附着容器。支持位置宽容扫描、反作弊发包绕过。"
         );
     }
 
@@ -135,8 +135,8 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // 彻底拦截：第一时间取消事件，阻止挥臂动画、交互包等任何原版侧漏
-        if (interceptEnabled.get()) {
+        // 拦截交互：反作弊模式不取消事件，让展示框交互包正常发送以绕过客户端检测
+        if (interceptEnabled.get() && !antiCheatCompat.get()) {
             event.cancel();
         }
 
