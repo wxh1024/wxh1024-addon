@@ -162,6 +162,10 @@ public class ItemFrameChestOpener extends Module {
 
         if (containerPos == null) return;
 
+        // 二次确认：发包前验证容器仍然有效
+        BlockEntity targetBe = mc.world.getBlockEntity(containerPos);
+        if (!isContainerEnabled(targetBe)) return;
+
         Vec3d hitPos = new Vec3d(
             containerPos.getX() + 0.5,
             containerPos.getY() + 0.5,
