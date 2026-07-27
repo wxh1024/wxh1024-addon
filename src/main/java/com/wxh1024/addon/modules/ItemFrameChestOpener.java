@@ -115,7 +115,7 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
         .name("反作弊兼容")
-        .description("不取消展示框事件，使其交互包正常发送以绕过反作弊客户端检测。同时发包开箱，双包并行。")
+        .description("改为发包方式开箱，绕过反作弊客户端限制。开启后仍会拦截展示框交互。")
         .defaultValue(false)
         .build()
     );
@@ -135,8 +135,8 @@ public class ItemFrameChestOpener extends Module {
         Entity entity = event.entity;
         if (!(entity instanceof ItemFrameEntity itemFrame)) return;
 
-        // 拦截交互：反作弊模式不取消事件，让展示框交互包正常发送以绕过客户端检测
-        if (interceptEnabled.get() && !antiCheatCompat.get()) {
+        // 拦截交互：取消事件阻止展示框原版交互（两种模式均生效）
+        if (interceptEnabled.get()) {
             event.cancel();
         }
 
