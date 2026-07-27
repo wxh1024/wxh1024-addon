@@ -1,7 +1,6 @@
 package com.wxh1024.addon.modules;
 
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
-import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -21,10 +20,9 @@ import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
+import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -35,187 +33,76 @@ public class ItemFrameChestOpener extends Module {
 
     // --- 容器开关 ---
     private final Setting<Boolean> chests = sgGeneral.add(new BoolSetting.Builder()
-        .name("箱子")
-        .description("开启箱子 / 陷阱箱")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("箱子").description("箱子 / 陷阱箱").defaultValue(true).build());
     private final Setting<Boolean> barrels = sgGeneral.add(new BoolSetting.Builder()
-        .name("木桶")
-        .description("开启木桶")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("木桶").description("木桶").defaultValue(true).build());
     private final Setting<Boolean> shulkerBoxes = sgGeneral.add(new BoolSetting.Builder()
-        .name("潜影盒")
-        .description("开启潜影盒")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("潜影盒").description("潜影盒").defaultValue(true).build());
     private final Setting<Boolean> dispensers = sgGeneral.add(new BoolSetting.Builder()
-        .name("发射器")
-        .description("开启发射器 / 投掷器")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("发射器").description("发射器 / 投掷器").defaultValue(true).build());
     private final Setting<Boolean> hoppers = sgGeneral.add(new BoolSetting.Builder()
-        .name("漏斗")
-        .description("开启漏斗")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("漏斗").description("漏斗").defaultValue(true).build());
     private final Setting<Boolean> furnaces = sgGeneral.add(new BoolSetting.Builder()
-        .name("熔炉")
-        .description("开启熔炉 / 高炉 / 烟熏炉")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("熔炉").description("熔炉 / 高炉 / 烟熏炉").defaultValue(true).build());
     private final Setting<Boolean> enderChests = sgGeneral.add(new BoolSetting.Builder()
-        .name("末影箱")
-        .description("开启末影箱")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("末影箱").description("末影箱").defaultValue(true).build());
     private final Setting<Boolean> brewingStands = sgGeneral.add(new BoolSetting.Builder()
-        .name("酿造台")
-        .description("开启酿造台")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("酿造台").description("酿造台").defaultValue(true).build());
     private final Setting<Boolean> crafters = sgGeneral.add(new BoolSetting.Builder()
-        .name("合成器")
-        .description("开启合成器")
-        .defaultValue(true)
-        .build()
-    );
+        .name("合成器").description("合成器").defaultValue(true).build());
 
     // --- 定位 ---
     private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
-        .name("位置宽容")
-        .description("沿附着方向穿透扫描格数。0=仅附着方块，1~6=穿透若干方块。")
-        .defaultValue(1)
-        .min(0)
-        .max(6)
-        .build()
-    );
+        .name("位置宽容").description("沿附着方向穿透扫描格数。0=仅附着方块，1~6=穿透若干方块。")
+        .defaultValue(1).min(0).max(6).build());
 
-    // --- 交互控制 ---
+    // --- 交互 ---
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
-        .name("拦截交互")
-        .description("阻止展示框原版交互（旋转物品、放置物品、挥手动画）。标准和反作弊模式均生效。")
-        .defaultValue(true)
-        .build()
-    );
-
+        .name("拦截交互").description("阻止展示框原版交互（旋转物品、放置物品）。").defaultValue(true).build());
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
-        .name("反作弊兼容")
-        .description("改为发包方式开箱，绕过反作弊客户端限制。开启后仍会拦截展示框交互。")
-        .defaultValue(false)
-        .build()
-    );
-
-    /** 当前正在拦截的展示框实体 ID + 超时时间戳 */
-    private int interceptFrameId = -1;
-    private long interceptExpire = 0;
+        .name("反作弊兼容").description("改为发包方式开箱，绕过客户端限制。").defaultValue(false).build());
 
     public ItemFrameChestOpener() {
-        super(
-            Wxh1024Addon.WXH1024,
-            "展示框开箱",
-            "右键展示框打开展示框后方附着容器。支持位置宽容扫描、反作弊发包绕过。"
-        );
-    }
-
-    /** 双保险：精确过滤被拦截展示框的交互包，2秒超时自动清除 */
-    @EventHandler
-    private void onSendPacket(PacketEvent.Send event) {
-        if (interceptFrameId < 0) return;
-        // 超时清除
-        if (System.currentTimeMillis() - interceptExpire > 2000) {
-            interceptFrameId = -1;
-            return;
-        }
-        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
-            try {
-                int id = (int) p.getClass().getDeclaredField("entityId").get(p);
-                if (id == interceptFrameId) {
-                    event.cancel();
-                    interceptFrameId = -1;
-                }
-            } catch (Exception ignored) {}
-        }
+        super(Wxh1024Addon.WXH1024, "展示框开箱",
+            "右键展示框打开展示框后方附着容器。支持位置宽容扫描、反作弊发包绕过。");
     }
 
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
+        if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
-        Entity entity = event.entity;
-        if (!(entity instanceof ItemFrameEntity itemFrame)) return;
+        // ① 拦截展示框交互：取消事件，阻止原版处理
+        if (interceptEnabled.get()) event.cancel();
 
-        // 拦截交互：取消事件 + 记录实体ID用于双保险精确过滤（2秒后自动清除）
-        if (interceptEnabled.get()) {
-            event.cancel();
-            interceptFrameId = itemFrame.getId();
-            interceptExpire = System.currentTimeMillis();
-        }
+        // ② 定位附着方块 + 扫描容器
+        Direction dir = frame.getHorizontalFacing().getOpposite();
+        BlockPos attach = BlockPos.ofFloored(
+            frame.getX() + dir.getOffsetX() * 0.5,
+            frame.getY() + dir.getOffsetY() * 0.5,
+            frame.getZ() + dir.getOffsetZ() * 0.5);
 
-        // === 定位附着方块 ===
-        Direction facing = itemFrame.getHorizontalFacing();
-        Direction attachmentDir = facing.getOpposite();
-        BlockPos attachmentPos = BlockPos.ofFloored(
-            itemFrame.getX() + attachmentDir.getOffsetX() * 0.5,
-            itemFrame.getY() + attachmentDir.getOffsetY() * 0.5,
-            itemFrame.getZ() + attachmentDir.getOffsetZ() * 0.5
-        );
-
-        // === 沿附着方向扫描，找到第一个容器就停止 ===
-        BlockPos containerPos = null;
-        int maxDist = rangeTolerance.get();
-        for (int dist = 0; dist <= maxDist; dist++) {
-            BlockPos checkPos = attachmentPos.offset(attachmentDir, dist);
-            if (isContainerEnabled(mc.world.getBlockEntity(checkPos))) {
-                containerPos = checkPos;
-                break; // 找到即停止
+        BlockPos container = null;
+        for (int d = 0; d <= rangeTolerance.get(); d++) {
+            if (isContainerEnabled(mc.world.getBlockEntity(attach.offset(dir, d)))) {
+                container = attach.offset(dir, d);
+                break;
             }
         }
+        if (container == null) return;
 
-        if (containerPos == null) return;
+        // ③ 二次确认 + 构造 hit
+        if (!isContainerEnabled(mc.world.getBlockEntity(container))) return;
+        Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
+        BlockHitResult hit = new BlockHitResult(pos, Direction.UP, container, false);
 
-        // 二次确认：发包前验证容器仍然有效
-        BlockEntity targetBe = mc.world.getBlockEntity(containerPos);
-        if (!isContainerEnabled(targetBe)) return;
-
-        Vec3d hitPos = new Vec3d(
-            containerPos.getX() + 0.5,
-            containerPos.getY() + 0.5,
-            containerPos.getZ() + 0.5
-        );
-        BlockHitResult containerHit = new BlockHitResult(
-            hitPos, Direction.UP, containerPos, false
-        );
-
+        // ④ 开箱
         if (antiCheatCompat.get()) {
-            // 发包开箱：绕过反作弊客户端限制
-            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(
-                Hand.MAIN_HAND, containerHit, 0
-            ));
-            mc.player.swingHand(Hand.MAIN_HAND);
+            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
         } else {
-            // === 标准模式 ===
-            ActionResult result = mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, containerHit);
-            if (result.isAccepted()) {
-                mc.player.swingHand(Hand.MAIN_HAND);
-            }
+            mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hit);
         }
+        mc.player.swingHand(Hand.MAIN_HAND);
     }
 
     private boolean isContainerEnabled(BlockEntity be) {
