@@ -31,10 +31,6 @@ repositories {
         name = 'Meteor Dev Snapshots'
         url = 'https://maven.meteordev.org/snapshots'
     }
-    // 本地文件仓库，用于本地 meteor-client JAR
-    flatDir {
-        dirs '.'
-    }
 }
 
 dependencies {
