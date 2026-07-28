@@ -75,6 +75,7 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
+        if (event.hand != Hand.MAIN_HAND) return; // 只处理主手，过滤副手重复事件
 
         checkDebugToggle();
         long t0 = debugOn() ? System.nanoTime() : 0;
