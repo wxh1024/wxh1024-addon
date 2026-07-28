@@ -36,11 +36,11 @@ public class ItemFrameChestOpener extends Module {
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
-            "右键展示框打开展示框后方附着容器。Mixin 篡改原版交互逻辑。");
+            "Mixin 篡改展示框交互为开箱。");
     }
 
-    /** 由 Mixin 调用：尝试扫描并开箱，返回是否成功 */
-    public boolean tryOpen(ItemFrameEntity frame) {
+    /** Mixin 调用：尝试开箱 */
+    public void tryOpen(ItemFrameEntity frame) {
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
             frame.getX() + d.getOffsetX() * 0.5,
@@ -53,13 +53,12 @@ public class ItemFrameChestOpener extends Module {
                 c = a.offset(d, i); break;
             }
         }
-        if (c == null) return false;
+        if (c == null) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
             new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
                 Direction.UP, c, false), 0));
         mc.player.swingHand(Hand.MAIN_HAND);
-        return true;
     }
 }
