@@ -65,6 +65,9 @@ public class ItemFrameChestOpener extends Module {
     private final StringBuilder debugBuffer = new StringBuilder();
     private boolean wasDebugOn = false;
 
+    // ─── 挥手标记：区分开箱挥手和展示框挥手 ───
+    private boolean isOurSwing = false;
+
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。");
@@ -128,6 +131,7 @@ public class ItemFrameChestOpener extends Module {
             debugLog("[interactBlock开箱] pos=%s +%.2fms",
                 container.toShortString(), (System.nanoTime() - t0) / 1e6);
         }
+        isOurSwing = true;
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 
@@ -147,14 +151,26 @@ public class ItemFrameChestOpener extends Module {
             return;
         }
 
+        // 挥手包：放行开箱挥手，拦截展示框挥手
+        if (event.packet instanceof HandSwingC2SPacket) {
+            boolean ours = isOurSwing;
+            if (ours) {
+                isOurSwing = false;   // 放行自己开箱的挥手
+            } else if (interceptEnabled.get()) {
+                event.cancel();        // 拦截展示框交互的挥手
+            }
+            checkDebugToggle();
+            if (debugOn()) debugLog("[发包%s] HandSwingC2SPacket",
+                ours ? "放行" : (interceptEnabled.get() ? "拦截" : "漏过"));
+            return;
+        }
+
         // 调试记录其他包
         checkDebugToggle();
         if (!debugOn()) return;
         if (event.packet instanceof PlayerInteractBlockC2SPacket pb)
             debugLog("[发包] PlayerInteractBlockC2SPacket pos=%s",
                 pb.getBlockHitResult().getBlockPos().toShortString());
-        if (event.packet instanceof HandSwingC2SPacket)
-            debugLog("[发包] HandSwingC2SPacket");
     }
 
     // ─── 调试辅助 ───
