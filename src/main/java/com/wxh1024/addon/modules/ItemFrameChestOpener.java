@@ -131,26 +131,34 @@ public class ItemFrameChestOpener extends Module {
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 
-    // ─── 发包监测：展示框相关数据包 ───
+    // ─── 发包拦截：兜底拦截 + 调试监测 ───
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
         checkDebugToggle();
-        if (!debugOn()) return;
+        boolean interceptOn = interceptEnabled.get();
+        boolean debug = debugOn();
+        if (!interceptOn && !debug) return;
 
+        // 展示框交互包：始终拦截 + 调试记录
         if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
             try {
                 int id = (int) p.getClass().getDeclaredField("entityId").get(p);
                 if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
-                    debugLog("[发包检测] PlayerInteractEntityC2SPacket entityId=%d", id);
+                    if (interceptOn) event.cancel();
+                    if (debug) debugLog("[发包拦截] PlayerInteractEntityC2SPacket entityId=%d %s",
+                        id, interceptOn ? "已拦截" : "未拦截(开关关闭)");
                 }
             } catch (Exception ignored) {}
+            return;
         }
-        if (event.packet instanceof HandSwingC2SPacket) {
-            debugLog("[发包检测] HandSwingC2SPacket");
-        }
-        if (event.packet instanceof PlayerInteractBlockC2SPacket p) {
-            debugLog("[发包检测] PlayerInteractBlockC2SPacket pos=%s",
+
+        // 方块交互包（开箱）：仅调试记录，不拦截
+        if (debug && event.packet instanceof PlayerInteractBlockC2SPacket p) {
+            debugLog("[发包] PlayerInteractBlockC2SPacket pos=%s",
                 p.getBlockHitResult().getBlockPos().toShortString());
+        }
+        if (debug && event.packet instanceof HandSwingC2SPacket) {
+            debugLog("[发包] HandSwingC2SPacket (开箱挥手)");
         }
     }
 
