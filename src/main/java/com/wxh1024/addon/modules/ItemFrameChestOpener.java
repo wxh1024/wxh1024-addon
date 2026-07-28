@@ -2,7 +2,6 @@ package com.wxh1024.addon.modules;
 
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.settings.BlockListSetting;
-import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
@@ -38,11 +37,6 @@ public class ItemFrameChestOpener extends Module {
         .description("附着方向穿透格数。0=仅附着方块，1~6=穿透。")
         .defaultValue(1).min(0).max(6).build());
 
-    private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
-        .name("反作弊兼容")
-        .description("直接发包开箱，跳过客户端校验。")
-        .defaultValue(false).build());
-
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。");
@@ -54,34 +48,27 @@ public class ItemFrameChestOpener extends Module {
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
         if (event.hand != Hand.MAIN_HAND) return;
 
+        // 定位附着方块
         Direction dir = frame.getHorizontalFacing().getOpposite();
         BlockPos attach = BlockPos.ofFloored(
             frame.getX() + dir.getOffsetX() * 0.5,
             frame.getY() + dir.getOffsetY() * 0.5,
             frame.getZ() + dir.getOffsetZ() * 0.5);
 
+        // 扫描容器
         BlockPos container = null;
         for (int d = 0; d <= rangeTolerance.get(); d++) {
-            BlockPos check = attach.offset(dir, d);
-            Block block = mc.world.getBlockState(check).getBlock();
-            if (containers.get().contains(block)) {
-                container = check;
+            if (containers.get().contains(mc.world.getBlockState(attach.offset(dir, d)).getBlock())) {
+                container = attach.offset(dir, d);
                 break;
             }
         }
-        if (container == null) {
-            info("未找到容器");
-            return;
-        }
+        if (container == null) return;
 
+        // 开箱
         Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
         BlockHitResult hit = new BlockHitResult(pos, Direction.UP, container, false);
-
-        if (antiCheatCompat.get()) {
-            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
-        } else {
-            mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hit);
-        }
+        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 }
