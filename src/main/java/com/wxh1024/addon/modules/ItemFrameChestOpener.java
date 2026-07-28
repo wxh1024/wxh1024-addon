@@ -39,8 +39,15 @@ public class ItemFrameChestOpener extends Module {
             "Mixin 篡改展示框交互为开箱。");
     }
 
+    private long lastOpen = 0;
+
     /** Mixin 调用：尝试开箱 */
     public void tryOpen(ItemFrameEntity frame) {
+        // 防重复：50ms 内不重复开箱
+        long now = System.currentTimeMillis();
+        if (now - lastOpen < 50) return;
+        lastOpen = now;
+
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
             frame.getX() + d.getOffsetX() * 0.5,
