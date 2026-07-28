@@ -48,7 +48,7 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> interceptEnabled = sgGeneral.add(new BoolSetting.Builder()
         .name("拦截交互")
-        .description("彗星 event.cancel() 拦截。阻止展示框原版交互包和挥手包。")
+        .description("彗星 event.cancel() 拦截展示框交互。@At(HEAD) 注入，阻止整个原版方法。")
         .defaultValue(true).build());
 
     private final Setting<Boolean> antiCheatCompat = sgGeneral.add(new BoolSetting.Builder()
@@ -58,40 +58,36 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> debugMode = sgGeneral.add(new BoolSetting.Builder()
         .name("调试模式")
-        .description("持续监测展示框相关数据包，关闭时自动复制日志到剪贴板。")
+        .description("监测展示框相关数据包，关闭时复制日志到剪贴板。")
         .defaultValue(false).build());
 
     // ─── 调试状态 ───
     private final StringBuilder debugBuffer = new StringBuilder();
     private boolean wasDebugOn = false;
 
-    // ─── 挥手标记：区分开箱挥手和展示框挥手 ───
-    private boolean isOurSwing = false;
-
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。");
     }
 
-    // ─── 展示框交互 ───
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
-        if (event.hand != Hand.MAIN_HAND) return; // 只处理主手，过滤副手重复事件
+        if (event.hand != Hand.MAIN_HAND) return;
 
         checkDebugToggle();
         long t0 = debugOn() ? System.nanoTime() : 0;
         long ts = debugOn() ? System.currentTimeMillis() : 0;
 
-        // 彗星 @At(HEAD) cancel
+        // @At(HEAD) cancel → 原版 interactEntity() 全部跳过
         if (interceptEnabled.get()) {
             event.cancel();
             debugLog("[拦截] event.cancel() +%.2fms ts=%d",
                 (System.nanoTime() - t0) / 1e6, ts);
         }
 
-        // 扫描
+        // 扫描容器
         Direction dir = frame.getHorizontalFacing().getOpposite();
         BlockPos attach = BlockPos.ofFloored(
             frame.getX() + dir.getOffsetX() * 0.5,
@@ -103,12 +99,10 @@ public class ItemFrameChestOpener extends Module {
         BlockPos container = null;
         for (int d = 0; d <= rangeTolerance.get(); d++) {
             BlockPos check = attach.offset(dir, d);
-            Block block = mc.world.getBlockState(check).getBlock();
-            if (containers.get().contains(block)) {
+            if (containers.get().contains(mc.world.getBlockState(check).getBlock())) {
                 container = check;
-                debugLog("[扫描命中] d=%d pos=%s block=%s +%.2fms",
-                    d, check.toShortString(), block.getTranslationKey(),
-                    (System.nanoTime() - t0) / 1e6);
+                debugLog("[扫描命中] d=%d pos=%s +%.2fms",
+                    d, check.toShortString(), (System.nanoTime() - t0) / 1e6);
                 break;
             }
         }
@@ -131,46 +125,28 @@ public class ItemFrameChestOpener extends Module {
             debugLog("[interactBlock开箱] pos=%s +%.2fms",
                 container.toShortString(), (System.nanoTime() - t0) / 1e6);
         }
-        isOurSwing = true;
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 
-    // ─── 发包拦截：兜底拦截展示框交互包 ───
+    // ─── 调试：发包监测（仅记录，不拦截） ───
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
-        // 处理展示框交互包
+        checkDebugToggle();
+        if (!debugOn()) return;
+
         if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
             try {
                 int id = (int) p.getClass().getDeclaredField("entityId").get(p);
-                boolean isFrame = mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity;
-                if (isFrame && interceptEnabled.get()) event.cancel();
-                checkDebugToggle();
-                if (debugOn()) debugLog("[发包%s] PlayerInteractEntityC2SPacket entityId=%d",
-                    isFrame ? (interceptEnabled.get() ? "拦截" : "漏过") : "忽略", id);
+                debugLog("[发包] PlayerInteractEntityC2SPacket entityId=%d", id);
             } catch (Exception ignored) {}
-            return;
         }
-
-        // 挥手包：放行开箱挥手，拦截展示框挥手
-        if (event.packet instanceof HandSwingC2SPacket) {
-            boolean ours = isOurSwing;
-            if (ours) {
-                isOurSwing = false;   // 放行自己开箱的挥手
-            } else if (interceptEnabled.get()) {
-                event.cancel();        // 拦截展示框交互的挥手
-            }
-            checkDebugToggle();
-            if (debugOn()) debugLog("[发包%s] HandSwingC2SPacket",
-                ours ? "放行" : (interceptEnabled.get() ? "拦截" : "漏过"));
-            return;
-        }
-
-        // 调试记录其他包
-        checkDebugToggle();
-        if (!debugOn()) return;
-        if (event.packet instanceof PlayerInteractBlockC2SPacket pb)
+        if (event.packet instanceof PlayerInteractBlockC2SPacket pb) {
             debugLog("[发包] PlayerInteractBlockC2SPacket pos=%s",
                 pb.getBlockHitResult().getBlockPos().toShortString());
+        }
+        if (event.packet instanceof HandSwingC2SPacket) {
+            debugLog("[发包] HandSwingC2SPacket");
+        }
     }
 
     // ─── 调试辅助 ───
@@ -186,7 +162,6 @@ public class ItemFrameChestOpener extends Module {
     private void checkDebugToggle() {
         boolean on = debugOn();
         if (wasDebugOn && !on) {
-            // 调试关闭 → 复制到剪贴板
             if (debugBuffer.length() > 0) {
                 GLFW.glfwSetClipboardString(mc.getWindow().getHandle(), debugBuffer.toString());
                 info(String.format("调试日志已复制到剪贴板 (%d 行)", countLines()));
