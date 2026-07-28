@@ -13,6 +13,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.decoration.ItemFrameEntity;
+import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.Hand;
@@ -57,6 +58,9 @@ public class ItemFrameChestOpener extends Module {
         .description("直接发包开箱，跳过客户端校验。")
         .defaultValue(false).build());
 
+    /** 标记：需要拦截下一个挥手臂包（展示框交互的挥手） */
+    private boolean blockNextSwing = false;
+
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。彗星方块选择器配置容器类型。");
@@ -69,7 +73,11 @@ public class ItemFrameChestOpener extends Module {
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
         // 事件层 cancel → mixin 调用 CallbackInfo.cancel() → 整个原版方法返回
-        if (interceptEnabled.get()) event.cancel();
+        // 标记拦截下一个挥手臂包（来自展示框交互的挥手）
+        if (interceptEnabled.get()) {
+            event.cancel();
+            blockNextSwing = true;
+        }
 
         // 扫描 + 开箱
         Direction dir = frame.getHorizontalFacing().getOpposite();
@@ -98,17 +106,28 @@ public class ItemFrameChestOpener extends Module {
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 
-    // ─── 第二层拦截：发包层（兜底，拦截任何泄漏的展示框交互包） ───
+    // ─── 第二层拦截：发包层（兜底拦截交互包 + 挥手包） ───
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
         if (!interceptEnabled.get()) return;
-        if (!(event.packet instanceof PlayerInteractEntityC2SPacket p)) return;
 
-        try {
-            int id = (int) p.getClass().getDeclaredField("entityId").get(p);
-            if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
+        // 拦截展示框挥手包
+        if (event.packet instanceof HandSwingC2SPacket) {
+            if (blockNextSwing) {
                 event.cancel();
+                blockNextSwing = false;
             }
-        } catch (Exception ignored) {}
+            return;
+        }
+
+        // 拦截展示框交互包
+        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
+            try {
+                int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+                if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
+                    event.cancel();
+                }
+            } catch (Exception ignored) {}
+        }
     }
 }
