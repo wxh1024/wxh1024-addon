@@ -35,42 +35,39 @@ public class ItemFrameChestOpener extends Module {
         .name("位置宽容").description("附着方向穿透格数。0=仅附着方块，1~6=穿透。")
         .defaultValue(1).min(0).max(6).build());
 
-    private boolean processing = false;
+    private long lastOpen = 0;
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
-            "Mixin 拦截 interact，主手扫描开箱，副手跳过。");
+            "Mixin 拦截 interact，主手扫描开箱，副手跳过。4gt 延时防重复。");
     }
 
     /** 由 Mixin 调用 */
     public void tryOpen(ItemFrameEntity frame) {
-        if (processing) return;
-        processing = true;
-        try {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc.world == null || mc.player == null) return;
+        if (System.currentTimeMillis() - lastOpen < 200) return;
 
-            Direction d = frame.getHorizontalFacing().getOpposite();
-            BlockPos a = BlockPos.ofFloored(
-                frame.getX() + d.getOffsetX() * 0.5,
-                frame.getY() + d.getOffsetY() * 0.5,
-                frame.getZ() + d.getOffsetZ() * 0.5);
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || mc.player == null) return;
 
-            BlockPos c = null;
-            for (int i = 0; i <= range.get(); i++) {
-                BlockPos p = a.offset(d, i);
-                if (containers.get().contains(mc.world.getBlockState(p).getBlock())) {
-                    c = p; break;
-                }
+        Direction d = frame.getHorizontalFacing().getOpposite();
+        BlockPos a = BlockPos.ofFloored(
+            frame.getX() + d.getOffsetX() * 0.5,
+            frame.getY() + d.getOffsetY() * 0.5,
+            frame.getZ() + d.getOffsetZ() * 0.5);
+
+        BlockPos c = null;
+        for (int i = 0; i <= range.get(); i++) {
+            BlockPos p = a.offset(d, i);
+            if (containers.get().contains(mc.world.getBlockState(p).getBlock())) {
+                c = p; break;
             }
-            if (c == null) return;
-
-            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
-                new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
-                    Direction.UP, c, false), 0));
-            mc.player.swingHand(Hand.MAIN_HAND);
-        } finally {
-            processing = false;
         }
+        if (c == null) return;
+
+        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
+            new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
+                Direction.UP, c, false), 0));
+        mc.player.swingHand(Hand.MAIN_HAND);
+        lastOpen = System.currentTimeMillis();
     }
 }
