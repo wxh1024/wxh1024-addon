@@ -62,12 +62,17 @@ public class ItemFrameChestOpener extends Module {
 
         BlockPos container = null;
         for (int d = 0; d <= rangeTolerance.get(); d++) {
-            if (containers.get().contains(mc.world.getBlockState(attach.offset(dir, d)).getBlock())) {
-                container = attach.offset(dir, d);
+            BlockPos check = attach.offset(dir, d);
+            Block block = mc.world.getBlockState(check).getBlock();
+            if (containers.get().contains(block)) {
+                container = check;
                 break;
             }
         }
-        if (container == null) return;
+        if (container == null) {
+            info("未找到容器");
+            return;
+        }
 
         Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
         BlockHitResult hit = new BlockHitResult(pos, Direction.UP, container, false);
