@@ -36,11 +36,13 @@ public class ItemFrameChestOpener extends Module {
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
-            "Mixin 篡改展示框交互为开箱。");
+            "Mixin 篡改 interactAt（旋转/放置入口）为开箱。");
     }
 
-    /** Mixin 调用：尝试开箱 */
+    /** 由 Mixin 的 interactAt 拦截点调用 */
     public void tryOpen(ItemFrameEntity frame) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || mc.player == null) return;
 
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
@@ -50,13 +52,15 @@ public class ItemFrameChestOpener extends Module {
 
         BlockPos c = null;
         for (int i = 0; i <= range.get(); i++) {
-            if (containers.get().contains(MinecraftClient.getInstance().world.getBlockState(a.offset(d, i)).getBlock())) {
-                c = a.offset(d, i); break;
+            BlockPos p = a.offset(d, i);
+            // 必须是容器（有 BlockEntity）且在选定列表内
+            if (mc.world.getBlockEntity(p) != null
+                && containers.get().contains(mc.world.getBlockState(p).getBlock())) {
+                c = p; break;
             }
         }
         if (c == null) return;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
             new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
                 Direction.UP, c, false), 0));
