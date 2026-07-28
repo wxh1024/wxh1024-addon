@@ -21,5 +21,6 @@ public class ItemFrameEntityMixin {
 
         if (hand == Hand.MAIN_HAND) mod.tryOpen((ItemFrameEntity) (Object) this);
         cir.setReturnValue(ActionResult.SUCCESS);
+        cir.cancel();
     }
 }
