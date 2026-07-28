@@ -24,7 +24,6 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<List<Block>> containers = sg.add(new BlockListSetting.Builder()
         .name("容器方块")
-        .filter(block -> block.getDefaultState().hasBlockEntity())
         .defaultValue(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL,
             Blocks.SHULKER_BOX, Blocks.DISPENSER, Blocks.DROPPER,
             Blocks.HOPPER, Blocks.FURNACE, Blocks.BLAST_FURNACE, Blocks.SMOKER,
