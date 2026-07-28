@@ -44,6 +44,7 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
+        if (event.hand == Hand.OFF_HAND) return;
 
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
