@@ -51,6 +51,11 @@ public class ItemFrameChestOpener extends Module {
         .description("直接发包开箱，跳过客户端校验。")
         .defaultValue(false).build());
 
+    private final Setting<Boolean> debugMode = sgGeneral.add(new BoolSetting.Builder()
+        .name("调试模式")
+        .description("在聊天栏输出发包和交互时序日志（毫秒精度）。")
+        .defaultValue(false).build());
+
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。");
@@ -61,9 +66,17 @@ public class ItemFrameChestOpener extends Module {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
+        boolean debug = debugMode.get();
+        long t0 = debug ? System.nanoTime() : 0;
+        long ct0 = debug ? System.currentTimeMillis() : 0;
+
         // 彗星 @At(HEAD) cancel → CallbackInfo.cancel() → 原版方法全跳过
         // 同时阻止: PlayerInteractEntityC2SPacket + HandSwingC2SPacket
-        if (interceptEnabled.get()) event.cancel();
+        if (interceptEnabled.get()) {
+            event.cancel();
+            if (debug) info(String.format("[取消事件] +%.2fms | ts=%d",
+                (System.nanoTime() - t0) / 1e6, ct0));
+        }
 
         // 扫描
         Direction dir = frame.getHorizontalFacing().getOpposite();
@@ -72,14 +85,27 @@ public class ItemFrameChestOpener extends Module {
             frame.getY() + dir.getOffsetY() * 0.5,
             frame.getZ() + dir.getOffsetZ() * 0.5);
 
+        if (debug) {
+            info(String.format("[定位] 附着=%s 方向=%s 宽容=%d",
+                attach.toShortString(), dir, rangeTolerance.get()));
+        }
+
         BlockPos container = null;
         for (int d = 0; d <= rangeTolerance.get(); d++) {
-            if (containers.get().contains(mc.world.getBlockState(attach.offset(dir, d)).getBlock())) {
-                container = attach.offset(dir, d);
+            BlockPos check = attach.offset(dir, d);
+            if (containers.get().contains(mc.world.getBlockState(check).getBlock())) {
+                container = check;
+                if (debug) info(String.format("[扫描命中] d=%d pos=%s block=%s +%.2fms",
+                    d, check.toShortString(), mc.world.getBlockState(check).getBlock().getTranslationKey(),
+                    (System.nanoTime() - t0) / 1e6));
                 break;
             }
         }
-        if (container == null) return;
+        if (container == null) {
+            if (debug) info(String.format("[未找到容器] 扫描%d格 +%.2fms",
+                rangeTolerance.get(), (System.nanoTime() - t0) / 1e6));
+            return;
+        }
 
         // 开箱
         Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
@@ -87,8 +113,12 @@ public class ItemFrameChestOpener extends Module {
 
         if (antiCheatCompat.get()) {
             mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
+            if (debug) info(String.format("[发包开箱] pos=%s +%.2fms",
+                container.toShortString(), (System.nanoTime() - t0) / 1e6));
         } else {
             mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hit);
+            if (debug) info(String.format("[interactBlock开箱] pos=%s +%.2fms",
+                container.toShortString(), (System.nanoTime() - t0) / 1e6));
         }
         mc.player.swingHand(Hand.MAIN_HAND);
     }
