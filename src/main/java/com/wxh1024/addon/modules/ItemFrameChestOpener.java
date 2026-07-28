@@ -1,6 +1,6 @@
 package com.wxh1024.addon.modules;
 
-import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BlockListSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -10,8 +10,10 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -37,14 +39,25 @@ public class ItemFrameChestOpener extends Module {
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
-            "右键展示框打开展示框后方附着容器。");
+            "右键展示框时，篡改交互包为开箱包。");
     }
 
     @EventHandler
-    private void onInteractEntity(InteractEntityEvent event) {
-        if (mc.world == null || mc.player == null) return;
-        if (!(event.entity instanceof ItemFrameEntity frame)) return;
+    private void onSendPacket(PacketEvent.Send event) {
+        if (!(event.packet instanceof PlayerInteractEntityC2SPacket p)) return;
 
+        // 获取实体 ID 并判断是否为展示框
+        Entity entity = null;
+        try {
+            int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+            entity = mc.world != null ? mc.world.getEntityById(id) : null;
+        } catch (Exception ignored) {}
+        if (!(entity instanceof ItemFrameEntity frame)) return;
+
+        // 取消展示框交互包
+        event.cancel();
+
+        // 扫描容器
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
             frame.getX() + d.getOffsetX() * 0.5,
@@ -59,6 +72,7 @@ public class ItemFrameChestOpener extends Module {
         }
         if (c == null) return;
 
+        // 篡改：发开箱包替代展示框交互包
         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
             new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
                 Direction.UP, c, false), 0));
