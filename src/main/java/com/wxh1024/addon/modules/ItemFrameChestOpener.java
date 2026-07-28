@@ -45,10 +45,10 @@ public class ItemFrameChestOpener extends Module {
         if (mc.world == null || mc.player == null) return;
 
         Direction d = frame.getHorizontalFacing().getOpposite();
-        BlockPos a = new BlockPos(
-            (int) Math.floor(frame.getX() + d.getOffsetX() * 0.5),
-            (int) Math.floor(frame.getY() + d.getOffsetY() * 0.5),
-            (int) Math.floor(frame.getZ() + d.getOffsetZ() * 0.5));
+        BlockPos a = BlockPos.ofFloored(
+            frame.getX() + d.getOffsetX() * 0.5,
+            frame.getY() + d.getOffsetY() * 0.5,
+            frame.getZ() + d.getOffsetZ() * 0.5);
 
         BlockPos c = null;
         for (int i = 0; i <= range.get(); i++) {
