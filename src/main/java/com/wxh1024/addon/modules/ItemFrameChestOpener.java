@@ -44,7 +44,12 @@ public class ItemFrameChestOpener extends Module {
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
-        if (event.hand == Hand.OFF_HAND) return;
+
+        // 副手：直接拦截，不做任何事
+        if (event.hand == Hand.OFF_HAND) { event.cancel(); return; }
+
+        // 主手：拦截原版交互，用开箱包替代
+        event.cancel();
 
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
