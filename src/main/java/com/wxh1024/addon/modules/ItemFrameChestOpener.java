@@ -1,15 +1,14 @@
 package com.wxh1024.addon.modules;
 
-import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
+import com.wxh1024.addon.Wxh1024Addon;
 import meteordevelopment.meteorclient.settings.BlockListSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import com.wxh1024.addon.Wxh1024Addon;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.Hand;
@@ -37,20 +36,11 @@ public class ItemFrameChestOpener extends Module {
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
-            "右键展示框打开展示框后方附着容器。");
+            "右键展示框打开展示框后方附着容器。Mixin 篡改原版交互逻辑。");
     }
 
-    @EventHandler
-    private void onInteractEntity(InteractEntityEvent event) {
-        if (mc.world == null || mc.player == null) return;
-        if (!(event.entity instanceof ItemFrameEntity frame)) return;
-
-        // 副手：直接拦截，不做任何事
-        if (event.hand == Hand.OFF_HAND) { event.cancel(); return; }
-
-        // 主手：拦截原版交互，用开箱包替代
-        event.cancel();
-
+    /** 由 Mixin 调用：尝试扫描并开箱，返回是否成功 */
+    public boolean tryOpen(ItemFrameEntity frame) {
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
             frame.getX() + d.getOffsetX() * 0.5,
@@ -59,15 +49,17 @@ public class ItemFrameChestOpener extends Module {
 
         BlockPos c = null;
         for (int i = 0; i <= range.get(); i++) {
-            if (containers.get().contains(mc.world.getBlockState(a.offset(d, i)).getBlock())) {
+            if (containers.get().contains(MinecraftClient.getInstance().world.getBlockState(a.offset(d, i)).getBlock())) {
                 c = a.offset(d, i); break;
             }
         }
-        if (c == null) return;
+        if (c == null) return false;
 
+        MinecraftClient mc = MinecraftClient.getInstance();
         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
             new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
                 Direction.UP, c, false), 0));
         mc.player.swingHand(Hand.MAIN_HAND);
+        return true;
     }
 }
