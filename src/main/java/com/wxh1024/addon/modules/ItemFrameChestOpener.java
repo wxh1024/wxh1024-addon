@@ -53,9 +53,7 @@ public class ItemFrameChestOpener extends Module {
         BlockPos c = null;
         for (int i = 0; i <= range.get(); i++) {
             BlockPos p = a.offset(d, i);
-            // 必须是容器（有 BlockEntity）且在选定列表内
-            if (mc.world.getBlockEntity(p) != null
-                && containers.get().contains(mc.world.getBlockState(p).getBlock())) {
+            if (containers.get().contains(mc.world.getBlockState(p).getBlock())) {
                 c = p; break;
             }
         }
