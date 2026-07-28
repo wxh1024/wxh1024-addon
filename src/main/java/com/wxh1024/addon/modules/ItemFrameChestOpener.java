@@ -1,6 +1,7 @@
 package com.wxh1024.addon.modules;
 
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BlockListSetting;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -12,12 +13,16 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.decoration.ItemFrameEntity;
+import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -53,29 +58,33 @@ public class ItemFrameChestOpener extends Module {
 
     private final Setting<Boolean> debugMode = sgGeneral.add(new BoolSetting.Builder()
         .name("调试模式")
-        .description("在聊天栏输出发包和交互时序日志（毫秒精度）。")
+        .description("持续监测展示框相关数据包，关闭时自动复制日志到剪贴板。")
         .defaultValue(false).build());
+
+    // ─── 调试状态 ───
+    private final StringBuilder debugBuffer = new StringBuilder();
+    private boolean wasDebugOn = false;
 
     public ItemFrameChestOpener() {
         super(Wxh1024Addon.WXH1024, "展示框开箱",
             "右键展示框打开展示框后方附着容器。");
     }
 
+    // ─── 展示框交互 ───
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
 
-        boolean debug = debugMode.get();
-        long t0 = debug ? System.nanoTime() : 0;
-        long ct0 = debug ? System.currentTimeMillis() : 0;
+        checkDebugToggle();
+        long t0 = debugOn() ? System.nanoTime() : 0;
+        long ts = debugOn() ? System.currentTimeMillis() : 0;
 
-        // 彗星 @At(HEAD) cancel → CallbackInfo.cancel() → 原版方法全跳过
-        // 同时阻止: PlayerInteractEntityC2SPacket + HandSwingC2SPacket
+        // 彗星 @At(HEAD) cancel
         if (interceptEnabled.get()) {
             event.cancel();
-            if (debug) info(String.format("[取消事件] +%.2fms | ts=%d",
-                (System.nanoTime() - t0) / 1e6, ct0));
+            debugLog("[拦截] event.cancel() +%.2fms ts=%d",
+                (System.nanoTime() - t0) / 1e6, ts);
         }
 
         // 扫描
@@ -84,26 +93,24 @@ public class ItemFrameChestOpener extends Module {
             frame.getX() + dir.getOffsetX() * 0.5,
             frame.getY() + dir.getOffsetY() * 0.5,
             frame.getZ() + dir.getOffsetZ() * 0.5);
-
-        if (debug) {
-            info(String.format("[定位] 附着=%s 方向=%s 宽容=%d",
-                attach.toShortString(), dir, rangeTolerance.get()));
-        }
+        debugLog("[定位] frame=%s dir=%s attach=%s tol=%d",
+            frame.getBlockPos().toShortString(), dir, attach.toShortString(), rangeTolerance.get());
 
         BlockPos container = null;
         for (int d = 0; d <= rangeTolerance.get(); d++) {
             BlockPos check = attach.offset(dir, d);
-            if (containers.get().contains(mc.world.getBlockState(check).getBlock())) {
+            Block block = mc.world.getBlockState(check).getBlock();
+            if (containers.get().contains(block)) {
                 container = check;
-                if (debug) info(String.format("[扫描命中] d=%d pos=%s block=%s +%.2fms",
-                    d, check.toShortString(), mc.world.getBlockState(check).getBlock().getTranslationKey(),
-                    (System.nanoTime() - t0) / 1e6));
+                debugLog("[扫描命中] d=%d pos=%s block=%s +%.2fms",
+                    d, check.toShortString(), block.getTranslationKey(),
+                    (System.nanoTime() - t0) / 1e6);
                 break;
             }
         }
         if (container == null) {
-            if (debug) info(String.format("[未找到容器] 扫描%d格 +%.2fms",
-                rangeTolerance.get(), (System.nanoTime() - t0) / 1e6));
+            debugLog("[未命中] 扫描%d格 +%.2fms",
+                rangeTolerance.get(), (System.nanoTime() - t0) / 1e6);
             return;
         }
 
@@ -113,13 +120,66 @@ public class ItemFrameChestOpener extends Module {
 
         if (antiCheatCompat.get()) {
             mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
-            if (debug) info(String.format("[发包开箱] pos=%s +%.2fms",
-                container.toShortString(), (System.nanoTime() - t0) / 1e6));
+            debugLog("[发包开箱] pos=%s +%.2fms",
+                container.toShortString(), (System.nanoTime() - t0) / 1e6);
         } else {
             mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hit);
-            if (debug) info(String.format("[interactBlock开箱] pos=%s +%.2fms",
-                container.toShortString(), (System.nanoTime() - t0) / 1e6));
+            debugLog("[interactBlock开箱] pos=%s +%.2fms",
+                container.toShortString(), (System.nanoTime() - t0) / 1e6);
         }
         mc.player.swingHand(Hand.MAIN_HAND);
+    }
+
+    // ─── 发包监测：展示框相关数据包 ───
+    @EventHandler
+    private void onSendPacket(PacketEvent.Send event) {
+        checkDebugToggle();
+        if (!debugOn()) return;
+
+        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
+            try {
+                int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+                if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
+                    debugLog("[发包检测] PlayerInteractEntityC2SPacket entityId=%d", id);
+                }
+            } catch (Exception ignored) {}
+        }
+        if (event.packet instanceof HandSwingC2SPacket) {
+            debugLog("[发包检测] HandSwingC2SPacket");
+        }
+        if (event.packet instanceof PlayerInteractBlockC2SPacket p) {
+            debugLog("[发包检测] PlayerInteractBlockC2SPacket pos=%s",
+                p.getBlockHitResult().getBlockPos().toShortString());
+        }
+    }
+
+    // ─── 调试辅助 ───
+    private boolean debugOn() { return debugMode.get(); }
+
+    private void debugLog(String fmt, Object... args) {
+        if (!debugOn()) return;
+        String msg = String.format(fmt, args);
+        info(msg);
+        debugBuffer.append(msg).append('\n');
+    }
+
+    private void checkDebugToggle() {
+        boolean on = debugOn();
+        if (wasDebugOn && !on) {
+            // 调试关闭 → 复制到剪贴板
+            if (debugBuffer.length() > 0) {
+                GLFW.glfwSetClipboardString(mc.getWindow().getHandle(), debugBuffer.toString());
+                info(String.format("调试日志已复制到剪贴板 (%d 行)", countLines()));
+            }
+            debugBuffer.setLength(0);
+        }
+        wasDebugOn = on;
+    }
+
+    private int countLines() {
+        int n = 0;
+        for (int i = 0; i < debugBuffer.length(); i++)
+            if (debugBuffer.charAt(i) == '\n') n++;
+        return n;
     }
 }
