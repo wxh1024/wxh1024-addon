@@ -131,34 +131,36 @@ public class ItemFrameChestOpener extends Module {
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 
-    // ─── 发包拦截：兜底拦截 + 调试监测 ───
+    // ─── 发包拦截：兜底拦截展示框交互包 ───
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
-        checkDebugToggle();
-        boolean interceptOn = interceptEnabled.get();
-        boolean debug = debugOn();
-        if (!interceptOn && !debug) return;
-
-        // 展示框交互包：始终拦截 + 调试记录
-        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
+        // 拦截：始终生效，不依赖调试模式
+        if (interceptEnabled.get() && event.packet instanceof PlayerInteractEntityC2SPacket p) {
             try {
                 int id = (int) p.getClass().getDeclaredField("entityId").get(p);
                 if (mc.world != null && mc.world.getEntityById(id) instanceof ItemFrameEntity) {
-                    if (interceptOn) event.cancel();
-                    if (debug) debugLog("[发包拦截] PlayerInteractEntityC2SPacket entityId=%d %s",
-                        id, interceptOn ? "已拦截" : "未拦截(开关关闭)");
+                    event.cancel();
                 }
             } catch (Exception ignored) {}
             return;
         }
 
-        // 方块交互包（开箱）：仅调试记录，不拦截
-        if (debug && event.packet instanceof PlayerInteractBlockC2SPacket p) {
-            debugLog("[发包] PlayerInteractBlockC2SPacket pos=%s",
-                p.getBlockHitResult().getBlockPos().toShortString());
+        // 调试：仅调试模式生效
+        checkDebugToggle();
+        if (!debugOn()) return;
+
+        if (event.packet instanceof PlayerInteractEntityC2SPacket p) {
+            try {
+                int id = (int) p.getClass().getDeclaredField("entityId").get(p);
+                debugLog("[发包] PlayerInteractEntityC2SPacket entityId=%d", id);
+            } catch (Exception ignored) {}
         }
-        if (debug && event.packet instanceof HandSwingC2SPacket) {
-            debugLog("[发包] HandSwingC2SPacket (开箱挥手)");
+        if (event.packet instanceof PlayerInteractBlockC2SPacket pb) {
+            debugLog("[发包] PlayerInteractBlockC2SPacket pos=%s",
+                pb.getBlockHitResult().getBlockPos().toShortString());
+        }
+        if (event.packet instanceof HandSwingC2SPacket) {
+            debugLog("[发包] HandSwingC2SPacket");
         }
     }
 
