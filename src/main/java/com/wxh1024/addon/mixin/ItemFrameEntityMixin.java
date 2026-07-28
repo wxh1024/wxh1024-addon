@@ -16,12 +16,11 @@ public class ItemFrameEntityMixin {
 
     @Inject(method = "interact", at = @At("HEAD"), cancellable = true)
     private void onInteract(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
-        if (hand != Hand.MAIN_HAND) return;
         ItemFrameChestOpener mod = Modules.get().get(ItemFrameChestOpener.class);
         if (mod == null || !mod.isActive()) return;
 
-        if (mod.tryOpen((ItemFrameEntity) (Object) this)) {
-            cir.setReturnValue(ActionResult.SUCCESS);
-        }
+        // 主手：开箱；副手：不做任何事。原版交互均跳过。
+        if (hand == Hand.MAIN_HAND) mod.tryOpen((ItemFrameEntity) (Object) this);
+        cir.setReturnValue(ActionResult.SUCCESS);
     }
 }
