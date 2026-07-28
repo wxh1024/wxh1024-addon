@@ -21,20 +21,18 @@ import net.minecraft.util.math.Vec3d;
 import java.util.List;
 
 public class ItemFrameChestOpener extends Module {
-    private final SettingGroup sgGeneral = settings.getDefaultGroup();
+    private final SettingGroup sg = settings.getDefaultGroup();
 
-    private final Setting<List<Block>> containers = sgGeneral.add(new BlockListSetting.Builder()
+    private final Setting<List<Block>> containers = sg.add(new BlockListSetting.Builder()
         .name("容器方块")
-        .defaultValue(
-            Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL,
+        .defaultValue(Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL,
             Blocks.SHULKER_BOX, Blocks.DISPENSER, Blocks.DROPPER,
             Blocks.HOPPER, Blocks.FURNACE, Blocks.BLAST_FURNACE, Blocks.SMOKER,
-            Blocks.ENDER_CHEST, Blocks.BREWING_STAND, Blocks.CRAFTER
-        ).build());
+            Blocks.ENDER_CHEST, Blocks.BREWING_STAND, Blocks.CRAFTER)
+        .build());
 
-    private final Setting<Integer> rangeTolerance = sgGeneral.add(new IntSetting.Builder()
-        .name("位置宽容")
-        .description("附着方向穿透格数。0=仅附着方块，1~6=穿透。")
+    private final Setting<Integer> range = sg.add(new IntSetting.Builder()
+        .name("位置宽容").description("附着方向穿透格数。0=仅附着方块，1~6=穿透。")
         .defaultValue(1).min(0).max(6).build());
 
     public ItemFrameChestOpener() {
@@ -44,31 +42,27 @@ public class ItemFrameChestOpener extends Module {
 
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
-        if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
+        if (mc.world == null || mc.player == null) return;
         if (!(event.entity instanceof ItemFrameEntity frame)) return;
         if (event.hand != Hand.MAIN_HAND) return;
 
-        // 定位附着方块
-        Direction dir = frame.getHorizontalFacing().getOpposite();
-        BlockPos attach = BlockPos.ofFloored(
-            frame.getX() + dir.getOffsetX() * 0.5,
-            frame.getY() + dir.getOffsetY() * 0.5,
-            frame.getZ() + dir.getOffsetZ() * 0.5);
+        Direction d = frame.getHorizontalFacing().getOpposite();
+        BlockPos a = BlockPos.ofFloored(
+            frame.getX() + d.getOffsetX() * 0.5,
+            frame.getY() + d.getOffsetY() * 0.5,
+            frame.getZ() + d.getOffsetZ() * 0.5);
 
-        // 扫描容器
-        BlockPos container = null;
-        for (int d = 0; d <= rangeTolerance.get(); d++) {
-            if (containers.get().contains(mc.world.getBlockState(attach.offset(dir, d)).getBlock())) {
-                container = attach.offset(dir, d);
-                break;
+        BlockPos c = null;
+        for (int i = 0; i <= range.get(); i++) {
+            if (containers.get().contains(mc.world.getBlockState(a.offset(d, i)).getBlock())) {
+                c = a.offset(d, i); break;
             }
         }
-        if (container == null) return;
+        if (c == null) return;
 
-        // 开箱
-        Vec3d pos = new Vec3d(container.getX() + 0.5, container.getY() + 0.5, container.getZ() + 0.5);
-        BlockHitResult hit = new BlockHitResult(pos, Direction.UP, container, false);
-        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
+        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
+            new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
+                Direction.UP, c, false), 0));
         mc.player.swingHand(Hand.MAIN_HAND);
     }
 }
