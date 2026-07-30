@@ -1,8 +1,12 @@
 package com.wxh1024.addon;
 
 import meteordevelopment.meteorclient.addons.MeteorAddon;
+import meteordevelopment.meteorclient.commands.Commands;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
+import com.wxh1024.addon.commands.C3uCommand;
+import com.wxh1024.addon.commands.TpCommand;
+import com.wxh1024.addon.commands.TpaCommand;
 import com.wxh1024.addon.modules.ControlifyCompat;
 import com.wxh1024.addon.modules.DropTest;
 import com.wxh1024.addon.modules.ItemFrameChestOpener;
@@ -18,6 +22,10 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new ItemFrameChestOpener());
         Modules.get().add(new ControlifyCompat());
         Modules.get().add(new DropTest());
+
+        Commands.add(new C3uCommand());
+        Commands.add(new TpCommand());
+        Commands.add(new TpaCommand());
     }
 
     @Override
