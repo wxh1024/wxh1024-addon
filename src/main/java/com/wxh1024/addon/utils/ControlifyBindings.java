@@ -1,14 +1,13 @@
 package com.wxh1024.addon.utils;
 
+import com.wxh1024.addon.modules.ControlifyCompat;
+import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.MinecraftClient;
 
 import java.lang.reflect.Method;
 
 /**
- * Controlify 绑定缓存 —— 两个 Mixin 共享的单例。
- * hot path: available() 只读 ready/failed 无同步。
- * cold path: init() synchronized 且 marked failed 后不再重试。
- * null controller: 每 tick 最多重试一次（lastNullTick 限流）。
+ * Controlify 绑定缓存 + 开关状态。
  */
 public final class ControlifyBindings {
 
@@ -18,12 +17,32 @@ public final class ControlifyBindings {
     private static volatile Method digitalNow;
     private static volatile Object fwd, back, left, right, jump, sneak, sprint;
 
+    // 模块开关缓存（每 tick 查一次）
+    private static volatile boolean moduleOn;
+    private static volatile int moduleCheckedTick = -1;
+
     private ControlifyBindings() {}
 
-    public static boolean available() {
+    /** 检查是否启用：Controlify 可用 + 模块开关开启 */
+    public static boolean enabled() {
+        if (!available()) return false;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return false;
+        int tick = mc.player.age;
+        if (tick == moduleCheckedTick) return moduleOn;
+        moduleCheckedTick = tick;
+        try {
+            ControlifyCompat mod = Modules.get().get(ControlifyCompat.class);
+            moduleOn = mod != null && mod.isActive();
+        } catch (Exception e) {
+            moduleOn = false;
+        }
+        return moduleOn;
+    }
+
+    private static boolean available() {
         if (ready) return true;
         if (failed) return false;
-        // 避免同 tick 内反复重试（仅在 player 存在时）
         try {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc != null && mc.player != null) {
@@ -33,7 +52,6 @@ public final class ControlifyBindings {
                 return ok;
             }
         } catch (Exception ignored) {}
-        // fallback: 没有 player 时允许首次尝试
         return init();
     }
 

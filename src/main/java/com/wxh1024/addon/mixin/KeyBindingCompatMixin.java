@@ -17,7 +17,7 @@ public abstract class KeyBindingCompatMixin {
     @Inject(method = "isPressed", at = @At("RETURN"), cancellable = true)
     private void onIsPressed(CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) return;
-        if (!ControlifyBindings.available()) return;
+        if (!ControlifyBindings.enabled()) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.options == null) return;

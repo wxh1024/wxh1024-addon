@@ -29,7 +29,7 @@ public abstract class SlimefunInputCompatMixin {
     private static void onOfGameOptions(CallbackInfoReturnable cir) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.player.input == null) return;
-        if (!ControlifyBindings.available()) return;
+        if (!ControlifyBindings.enabled()) return;
 
         Constructor<?> ctor = getCtor();
         if (ctor == null) return;

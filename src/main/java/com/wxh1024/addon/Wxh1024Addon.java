@@ -3,6 +3,7 @@ package com.wxh1024.addon;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
+import com.wxh1024.addon.modules.ControlifyCompat;
 import com.wxh1024.addon.modules.ItemFrameChestOpener;
 import com.wxh1024.addon.modules.Home;
 
@@ -14,6 +15,7 @@ public class Wxh1024Addon extends MeteorAddon {
     public void onInitialize() {
         Modules.get().add(new Home());
         Modules.get().add(new ItemFrameChestOpener());
+        Modules.get().add(new ControlifyCompat());
     }
 
     @Override
