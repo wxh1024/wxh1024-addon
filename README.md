@@ -67,8 +67,27 @@
 .tpa del home
 ```
 
+## 多版本分支
+
+仓库按 Minecraft 版本分分支维护，各分支的 `gradle.properties` 已指向对应版本：
+
+| 分支 | Minecraft | Yarn 映射 |
+|------|-----------|-----------|
+| `main` | 1.21.11 | 1.21.11+build.4 |
+| `1.21.1` | 1.21.1 | 1.21.1+build.3 |
+| `1.21.4` | 1.21.4 | 1.21.4+build.8 |
+
+`build.gradle` 通过 `gradle.properties` 里的 `meteor_jar` 变量引用本地的 Meteor 客户端 JAR：
+
+```
+modApi files("${rootDir}/libs/${project.meteor_jar}")
+```
+
+构建对应分支前，需要把该版本匹配的 Meteor 客户端 JAR（以及与版本对应的 Controlify 等运行依赖，运行时放入 `mods/`）放入 `libs/` 目录，并让 `meteor_jar` 指向其文件名。当前 `libs/` 仅有 `meteor-client-1.21.11-85.jar`，`1.21.1` / `1.21.4` 分支需补上对应版本的 JAR 才能编译。
+
 ## 仓库
 
 私有仓库：https://github.com/wxh1024/wxh1024-addon
 
 > 注：`hybridious_mod-main/`（第三方参考项目）仅用于本地移植参考，已加入 `.gitignore`，不会提交到仓库。
+> 注：`libs/` 下的 Meteor / Controlify JAR 属于运行时依赖，未纳入版本管理。
