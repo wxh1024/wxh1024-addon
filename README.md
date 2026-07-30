@@ -83,11 +83,25 @@
 modApi files("${rootDir}/libs/${project.meteor_jar}")
 ```
 
-构建对应分支前，需要把该版本匹配的 Meteor 客户端 JAR（以及与版本对应的 Controlify 等运行依赖，运行时放入 `mods/`）放入 `libs/` 目录，并让 `meteor_jar` 指向其文件名。当前 `libs/` 仅有 `meteor-client-1.21.11-85.jar`，`1.21.1` / `1.21.4` 分支需补上对应版本的 JAR 才能编译。
+构建对应分支前，需确保该分支 `libs/` 下存在本版本对应的 Meteor 客户端 JAR，并让 `meteor_jar` 指向其文件名。**各分支的 `libs/` 只保留自己版本的 jar**（已纳入 git 版本管理，克隆即自带，无需手动补）：
+
+| 分支 | `libs/` 中的 jar | `meteor_jar` |
+|------|------------------|--------------|
+| `main` | `meteor-client-1.21.11.jar` | `meteor-client-1.21.11.jar` |
+| `1.21.1` | `meteor-client-1.21.1.jar` | `meteor-client-1.21.1.jar` |
+| `1.21.4` | `meteor-client-1.21.4.jar` | `meteor-client-1.21.4.jar` |
+
+`build.gradle` 通过 `gradle.properties` 里的 `meteor_jar` 变量引用对应的 jar：
+
+```gradle
+modApi files("${rootDir}/libs/${project.meteor_jar}")
+```
+
+运行时还需把与版本匹配的 Meteor Client 及 Controlify 等放入 Minecraft 的 `mods/` 目录。
 
 ## 仓库
 
 私有仓库：https://github.com/wxh1024/wxh1024-addon
 
 > 注：`hybridious_mod-main/`（第三方参考项目）仅用于本地移植参考，已加入 `.gitignore`，不会提交到仓库。
-> 注：`libs/` 下的 Meteor / Controlify JAR 属于运行时依赖，未纳入版本管理。
+> 注：`libs/` 下的 Meteor 客户端 JAR 已纳入版本管理（`.gitignore` 中以 `!libs/*.jar` 放行），按分支各自保存对应版本，克隆仓库即可直接构建。
