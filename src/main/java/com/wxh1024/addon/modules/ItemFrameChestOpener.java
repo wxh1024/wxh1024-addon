@@ -10,7 +10,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.decoration.ItemFrameEntity;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -47,7 +46,7 @@ public class ItemFrameChestOpener extends Module {
         if (System.currentTimeMillis() - lastOpen < 200) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || mc.player == null) return;
+        if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
 
         Direction d = frame.getHorizontalFacing().getOpposite();
         BlockPos a = BlockPos.ofFloored(
@@ -64,10 +63,10 @@ public class ItemFrameChestOpener extends Module {
         }
         if (c == null) return;
 
-        mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND,
-            new BlockHitResult(new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
-                Direction.UP, c, false), 0));
-        mc.player.swingHand(Hand.MAIN_HAND);
+        BlockHitResult hit = new BlockHitResult(
+            new Vec3d(c.getX() + 0.5, c.getY() + 0.5, c.getZ() + 0.5),
+            Direction.UP, c, false);
+        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hit);
         lastOpen = System.currentTimeMillis();
     }
 }

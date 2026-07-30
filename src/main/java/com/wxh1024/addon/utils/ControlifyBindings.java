@@ -17,8 +17,8 @@ public final class ControlifyBindings {
     private ControlifyBindings() {}
 
     public static boolean enabled() {
-        if (ready && checkModule()) return true;
-        return ready ? false : init();
+        if (ready) return checkModule();
+        return init();
     }
 
     public static boolean is(int idx) {

@@ -21,3 +21,6 @@ Thumbs.db
 # Minecraft
 run/
 logs/
+
+# 第三方参考项目（仅用于移植参考，不纳入本仓库）
+hybridious_mod-main/

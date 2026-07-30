@@ -123,11 +123,19 @@ public class Home extends Module {
                 : reason + " & 高度过低:" + String.format("%.1f", playerY);
         }
 
-        if (shouldTrigger && !this.triggered) {
-            this.triggered = true;
-            triggerHome(reason);
-        } else if (!shouldTrigger) {
+        if (!shouldTrigger) {
             this.triggered = false;
+            return;
+        }
+
+        // 冷却检查放在 triggered 标记之前，防止冷却期间标记卡死
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - this.lastTriggerTime < cooldown.get() * 1000L) return;
+
+        if (!this.triggered) {
+            this.triggered = true;
+            this.lastTriggerTime = currentTime;
+            triggerHome(reason);
         }
     }
 
@@ -138,14 +146,6 @@ public class Home extends Module {
     }
 
     private void triggerHome(String reason) {
-        if (mc.player == null || mc.getNetworkHandler() == null) return;
-
-        long currentTime = System.currentTimeMillis();
-        int cooldownMs = cooldown.get() * 1000;
-        if (currentTime - this.lastTriggerTime < cooldownMs) return;
-
-        this.lastTriggerTime = currentTime;
-
         // 聊天通知
         if (sendChatMessageEnabled.get() && !notifyMessage.get().isEmpty()) {
             info(notifyMessage.get() + " 原因:" + reason);
@@ -164,7 +164,7 @@ public class Home extends Module {
 
     @Override
     public String getInfoString() {
-        if (mc.player == null) return null;
+        if (mc.player == null) return "";
 
         int totems = countTotems();
         double y = mc.player.getY();
