@@ -10,14 +10,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.reflect.Constructor;
 
-/**
- * PlayerInputUtils.of(GameOptions) → Controlify 绑定 || KeyBinding.isPressed()。
- */
 @Pseudo
 @Mixin(targets = "me.matl114.utils.entity.PlayerInputUtils", remap = false)
 public abstract class SlimefunInputCompatMixin {
 
-    private static volatile Constructor<?> inputCtor;
+    private static volatile Constructor<?> ctor;
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Inject(
@@ -31,32 +28,30 @@ public abstract class SlimefunInputCompatMixin {
         if (mc.player == null || mc.player.input == null) return;
         if (!ControlifyBindings.enabled()) return;
 
-        Constructor<?> ctor = getCtor();
-        if (ctor == null) return;
+        Constructor<?> c = getCtor();
+        if (c == null) return;
 
+        var o = mc.options;
         try {
-            Object result = ctor.newInstance(
-                ControlifyBindings.isWalkForward()  || mc.options.forwardKey.isPressed(),
-                ControlifyBindings.isWalkBackward() || mc.options.backKey.isPressed(),
-                ControlifyBindings.isWalkLeft()     || mc.options.leftKey.isPressed(),
-                ControlifyBindings.isWalkRight()    || mc.options.rightKey.isPressed(),
-                ControlifyBindings.isJump()         || mc.options.jumpKey.isPressed(),
-                ControlifyBindings.isSneak()        || mc.options.sneakKey.isPressed(),
-                ControlifyBindings.isSprint()       || mc.options.sprintKey.isPressed()
-            );
-            cir.setReturnValue(result);
-        } catch (Exception ignored) {
-        }
+            cir.setReturnValue(c.newInstance(
+                ControlifyBindings.is(0) || o.forwardKey.isPressed(),
+                ControlifyBindings.is(1) || o.backKey.isPressed(),
+                ControlifyBindings.is(2) || o.leftKey.isPressed(),
+                ControlifyBindings.is(3) || o.rightKey.isPressed(),
+                ControlifyBindings.is(4) || o.jumpKey.isPressed(),
+                ControlifyBindings.is(5) || o.sneakKey.isPressed(),
+                ControlifyBindings.is(6) || o.sprintKey.isPressed()
+            ));
+        } catch (Exception ignored) {}
     }
 
     private static Constructor<?> getCtor() {
-        if (inputCtor != null) return inputCtor;
+        if (ctor != null) return ctor;
         try {
-            inputCtor = Class.forName("me.matl114.utils.entity.PlayerInputUtils$Input")
+            ctor = Class.forName("me.matl114.utils.entity.PlayerInputUtils$Input")
                 .getConstructor(boolean.class,boolean.class,boolean.class,boolean.class,
                                 boolean.class,boolean.class,boolean.class);
-        } catch (Exception ignored) {
-        }
-        return inputCtor;
+        } catch (Exception ignored) {}
+        return ctor;
     }
 }

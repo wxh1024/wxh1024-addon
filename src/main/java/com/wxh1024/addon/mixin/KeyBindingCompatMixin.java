@@ -2,15 +2,13 @@ package com.wxh1024.addon.mixin;
 
 import com.wxh1024.addon.utils.ControlifyBindings;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * KeyBinding.isPressed() → Controlify 绑定补位。
- */
 @Mixin(KeyBinding.class)
 public abstract class KeyBindingCompatMixin {
 
@@ -20,19 +18,20 @@ public abstract class KeyBindingCompatMixin {
         if (!ControlifyBindings.enabled()) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null || mc.options == null) return;
+        if (mc.player == null) return;
 
         KeyBinding self = (KeyBinding) (Object) this;
-        boolean result = false;
+        GameOptions o = mc.options;
+        int idx = -1;
+        if      (self == o.forwardKey) idx = 0;
+        else if (self == o.backKey)    idx = 1;
+        else if (self == o.leftKey)    idx = 2;
+        else if (self == o.rightKey)   idx = 3;
+        else if (self == o.jumpKey)    idx = 4;
+        else if (self == o.sneakKey)   idx = 5;
+        else if (self == o.sprintKey)  idx = 6;
+        else return;
 
-        if      (self == mc.options.forwardKey) result = ControlifyBindings.isWalkForward();
-        else if (self == mc.options.backKey)    result = ControlifyBindings.isWalkBackward();
-        else if (self == mc.options.leftKey)    result = ControlifyBindings.isWalkLeft();
-        else if (self == mc.options.rightKey)   result = ControlifyBindings.isWalkRight();
-        else if (self == mc.options.jumpKey)    result = ControlifyBindings.isJump();
-        else if (self == mc.options.sneakKey)   result = ControlifyBindings.isSneak();
-        else if (self == mc.options.sprintKey)  result = ControlifyBindings.isSprint();
-
-        if (result) cir.setReturnValue(true);
+        if (ControlifyBindings.is(idx)) cir.setReturnValue(true);
     }
 }
