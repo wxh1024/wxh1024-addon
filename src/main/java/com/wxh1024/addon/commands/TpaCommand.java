@@ -53,8 +53,8 @@ public class TpaCommand extends Command {
             return;
         }
         boolean existed = TpAliasStore.add(name, msg);
-        if (existed) info(CmdText.color("§a[TP] §7已更新别名 §b" + name + " §7为: §f" + msg));
-        else info(CmdText.color("§a[TP] §7已添加别名 §b" + name + " §7: §f" + msg));
+        if (existed) info(CmdText.color("§7已更新别名 §b" + name + " §7为: §f" + msg));
+        else info(CmdText.color("§7已添加别名 §b" + name + " §7: §f" + msg));
     }
 
     private void del(String name) {
@@ -62,17 +62,17 @@ public class TpaCommand extends Command {
             error("用法: .tpa del <名称>");
             return;
         }
-        if (TpAliasStore.remove(name)) info(CmdText.color("§a[TP] §7已删除别名 §b" + name));
+        if (TpAliasStore.remove(name)) info(CmdText.color("§7已删除别名 §b" + name));
         else error("未找到别名 §b%s", name);
     }
 
     private void list() {
         Map<String, String> all = TpAliasStore.all();
         if (all.isEmpty()) {
-            info(CmdText.color("§a[TP] §7暂无别名，使用 .tpa add <名称> <消息指令> 添加"));
+            info(CmdText.color("§7暂无别名，使用 .tpa add <名称> <消息指令> 添加"));
             return;
         }
-        info(CmdText.color("§a[TP别名] §7共 " + all.size() + " 条"));
+        info(CmdText.color("§7tp 别名共 " + all.size() + " 条"));
         info(CmdText.color("§8========================"));
         for (Map.Entry<String, String> e : all.entrySet()) {
             info(CmdText.color("§8| §b" + e.getKey() + " §8=> §f" + e.getValue()));
@@ -81,7 +81,7 @@ public class TpaCommand extends Command {
     }
 
     private void usage() {
-        info(CmdText.color("§a[TP] §7tp 别名管理"));
+        info(CmdText.color("§7tp 别名管理"));
         info(CmdText.color("§8| §7.tpa add <名称> <消息指令>  §8- 添加/覆盖"));
         info(CmdText.color("§8| §7.tpa del <名称>            §8- 删除"));
         info(CmdText.color("§8| §7.tpa list                 §8- 查看全部"));

@@ -49,7 +49,7 @@ public class C3uCommand extends Command {
             error("请输入玩家名: .3c3u <玩家名>");
             return;
         }
-        info(color("§a[3C3U] §7正在查询玩家 §b" + name + " §7的信息..."));
+        info(color("§7正在查询玩家 §b" + name + " §7的信息..."));
         new Thread(() -> {
             try {
                 String json = fetch(name);
@@ -83,7 +83,7 @@ public class C3uCommand extends Command {
 
     private void printResult(PlayerData d) {
         boolean online = d.lastLogin > d.lastLogout;
-        info(color("§a[3C3U] §b" + d.name + " §a[§" + (online ? "a在线" : "c离线") + "§a]"));
+        info(color("§b" + d.name + " §a[§" + (online ? "a在线" : "c离线") + "§a]"));
         info(color("§8========================"));
         line("UUID", d.uuid != null && !d.uuid.isEmpty() ? d.uuid : "未知", Formatting.WHITE);
         line("状态", online ? "在线" : "离线", online ? Formatting.GREEN : Formatting.RED);

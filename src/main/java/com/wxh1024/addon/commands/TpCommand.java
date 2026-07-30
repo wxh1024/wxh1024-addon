@@ -35,7 +35,7 @@ public class TpCommand extends Command {
             error("未找到别名 §b%s §7对应的指令，请先用 .tpa add 添加", name);
             return;
         }
-        info(CmdText.color("§a[TP] §7触发别名 §b" + name + " §7: §f" + msg));
+        info(CmdText.color("§7触发别名 §b" + name + " §7: §f" + msg));
         ChatUtils.sendPlayerMsg(msg);
     }
 }
