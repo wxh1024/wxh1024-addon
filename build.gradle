@@ -39,7 +39,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     // 使用本地 meteor-client JAR，编译+运行都需要
-    modApi files("${rootDir}/meteor-client-1.21.11-85.jar")
+    modApi files("${rootDir}/libs/meteor-client-1.21.11-85.jar")
 
     // meteor-client 的传递依赖（因使用本地 JAR 需手动声明）
     modApi "meteordevelopment:orbit:0.2.4"

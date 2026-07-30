@@ -1,0 +1,235 @@
+package me.matl114.hooks;
+
+import baritone.api.BaritoneAPI;
+import baritone.api.IBaritone;
+import baritone.api.Settings;
+import baritone.api.event.events.ChatEvent;
+import baritone.api.utils.BetterBlockPos;
+import baritone.process.ElytraProcess;
+import baritone.process.elytra.ElytraBehavior;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Supplier;
+import lombok.Getter;
+import me.matl114.events.annotations.Broadcast;
+import me.matl114.events.annotations.Cancelable;
+import me.matl114.events.annotations.ExtraArgs;
+import me.matl114.events.channels.EventChannel;
+import me.matl114.hooks.impl.BaritoneFuture;
+import me.matl114.hooks.impl.BaritoneLanding;
+import me.matl114.utils.config.ValueAccessor;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.BlockPos;
+
+public abstract class BaritoneHooks implements IHooks {
+
+    private static BaritoneHooks instance;
+
+    public static BaritoneHooks getInstance() {
+        if (instance == null) {
+            try {
+                try {
+                    instance = new MeteorBaritoneImpl();
+                } catch (Throwable e) {
+                    instance = new UnknownBaritoneImpl();
+                }
+            } catch (Throwable e) {
+                instance = new Default();
+            }
+        }
+        return instance;
+    }
+
+    private static final MinecraftClient mc = MinecraftClient.getInstance();
+
+    public abstract boolean handleCommand(String command);
+
+    public abstract <T> ValueAccessor<T> getSetting(String name);
+
+    public abstract boolean isElytraProcessing();
+
+    public abstract void setBaritoneNetherPathSupplier(Supplier<List<BlockPos>> blockPos);
+
+    public abstract void updateBaritoneNetherPath();
+
+    public abstract void setBaritoneCurrentElytraDestination(BlockPos pos);
+
+    public abstract void cancelBaritone();
+
+    public abstract String getCommandPrefix();
+
+    public abstract boolean isBaritoneAPISupported();
+
+    public abstract boolean isBaritoneVersionSupported();
+
+    @Getter
+    @Cancelable
+    @ExtraArgs({BaritoneLanding.class})
+    public static final EventChannel<BaritoneFuture> landingEvent = new EventChannel<>();
+
+    @Getter
+    @Broadcast
+    public static final EventChannel<BlockPos> elytraPathingEvent = new EventChannel<>();
+
+    public abstract static class AbstractBaritoneVersion extends BaritoneHooks {
+        final Settings settings;
+        final Map<String, ValueAccessor<?>> settingsMap = new LinkedHashMap<>();
+        final ValueAccessor<String> prefix;
+
+        public AbstractBaritoneVersion() {
+            Class<?> checkClass = BaritoneAPI.class;
+            settings = BaritoneAPI.getSettings();
+            buildMap();
+            prefix = getSetting("prefix");
+        }
+
+        private void buildMap() {
+            for (Settings.Setting re : settings.allSettings) {
+                String nameLowerCase = re.getName().toLowerCase();
+                ValueAccessor accessor = ValueAccessor.of(() -> re.value, (va) -> re.value = va);
+                settingsMap.put(nameLowerCase, accessor);
+            }
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+
+        @Override
+        public boolean handleCommand(String command) {
+            String pfx = BaritoneAPI.getSettings().prefix.value;
+            command = command.startsWith(pfx) ? command : (pfx + command);
+            ChatEvent var4 = new ChatEvent(command);
+            IBaritone var3;
+            if ((var3 = BaritoneAPI.getProvider().getBaritoneForPlayer(mc.player)) != null) {
+                var3.getGameEventHandler().onSendChatMessage(var4);
+                if (var4.isCancelled()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public <T> ValueAccessor<T> getSetting(String name) {
+            return (ValueAccessor<T>) settingsMap.get(name.toLowerCase(Locale.ROOT));
+        }
+
+        public String getCommandPrefix() {
+            return prefix == null ? "#" : prefix.getValue();
+        }
+
+        public boolean isBaritoneAPISupported() {
+            return true;
+        }
+
+        @Override
+        public boolean isElytraProcessing() {
+            return BaritoneAPI.getProvider()
+                    .getPrimaryBaritone()
+                    .getElytraProcess()
+                    .isActive();
+        }
+
+        @Override
+        public void setBaritoneCurrentElytraDestination(BlockPos pos) {
+            BaritoneAPI.getProvider().getPrimaryBaritone().getElytraProcess().pathTo(pos);
+        }
+
+        @Override
+        public void cancelBaritone() {
+            BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().cancelEverything();
+        }
+
+        @Override
+        public void updateBaritoneNetherPath() {
+            BaritoneAPI.getProvider().getPrimaryBaritone().getElytraProcess().resetState();
+        }
+    }
+
+    public static class MeteorBaritoneImpl extends AbstractBaritoneVersion {
+
+        public static Supplier<List<BlockPos>> netherPathSupplier;
+
+        public MeteorBaritoneImpl() {
+            Class<?> clazz = ElytraProcess.class;
+            clazz = ElytraBehavior.class;
+            clazz = BetterBlockPos.class;
+        }
+
+        @Override
+        public boolean isBaritoneVersionSupported() {
+            return true;
+        }
+
+        @Override
+        public void setBaritoneNetherPathSupplier(Supplier<List<BlockPos>> blockPos) {
+            netherPathSupplier = blockPos;
+        }
+    }
+
+    public static class UnknownBaritoneImpl extends AbstractBaritoneVersion {
+        public UnknownBaritoneImpl() {}
+
+        @Override
+        public void setBaritoneNetherPathSupplier(Supplier<List<BlockPos>> blockPos) {}
+
+        @Override
+        public boolean isBaritoneVersionSupported() {
+            return false;
+        }
+    }
+
+    public static class Default extends BaritoneHooks {
+
+        @Override
+        public boolean isEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean handleCommand(String command) {
+            return false;
+        }
+
+        @Override
+        public <T> ValueAccessor<T> getSetting(String name) {
+            return null;
+        }
+
+        @Override
+        public boolean isElytraProcessing() {
+            return false;
+        }
+
+        @Override
+        public void setBaritoneNetherPathSupplier(Supplier<List<BlockPos>> blockPos) {}
+
+        @Override
+        public void updateBaritoneNetherPath() {}
+
+        @Override
+        public void setBaritoneCurrentElytraDestination(BlockPos pos) {}
+
+        @Override
+        public void cancelBaritone() {}
+
+        @Override
+        public String getCommandPrefix() {
+            return "#";
+        }
+
+        @Override
+        public boolean isBaritoneAPISupported() {
+            return false;
+        }
+
+        @Override
+        public boolean isBaritoneVersionSupported() {
+            return false;
+        }
+    }
+}

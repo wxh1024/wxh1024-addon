@@ -1,0 +1,23 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "me.matl114.hooks.mixin",
+	"plugin": "me.matl114.hooks.HooksMixinPlugin",
+	"compatibilityLevel": "JAVA_17",
+	"client": [
+		"baritone.BaritoneChunkPackerFixMixin",
+		"baritone.ElytraBehaviourMixin",
+		"baritone.ElytraBehaviourPathManagerMixin",
+		"baritone.ElytraCommandMixin",
+		"baritone.ElytraProcessMixin",
+		"baritone.InventoryBehaviourMixin",
+		"litematica.PlacementManagerDaemonFixMixin",
+		"litematica.ServuxLitematicaFixMixin",
+		"meteor.BaritoneSettingsMixin",
+		"sodium.SodiumWorldRendererMixin",
+		"viaversion.PacketWrapperSendEvents"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

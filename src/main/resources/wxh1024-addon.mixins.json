@@ -3,7 +3,8 @@
   "package": "com.wxh1024.addon.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ItemFrameEntityMixin"
+    "ItemFrameEntityMixin",
+    "SlimefunPlayerInputUtilsMixin"
   ],
   "injectors": {
     "defaultRequire": 1
