@@ -38,8 +38,8 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    // 使用本地 meteor-client JAR，编译+运行都需要
-    modApi files("${rootDir}/libs/meteor-client-1.21.11-85.jar")
+    // 使用本地 meteor-client JAR，编译+运行都需要（具体文件名由各分支的 gradle.properties 指定）
+    modApi files("${rootDir}/libs/${project.meteor_jar}")
 
     // meteor-client 的传递依赖（因使用本地 JAR 需手动声明）
     modApi "meteordevelopment:orbit:0.2.4"
