@@ -27,8 +27,8 @@ public class Home extends Module {
 
     private final Setting<String> command = sgGeneral.add(new StringSetting.Builder()
         .name("命令")
-        .description("触发时执行的命令（例如 /home 或 /spawn）")
-        .defaultValue("/home")
+        .description("触发时执行的命令（例如 /m  或 .tp）")
+        .defaultValue(".tp 8")
         .visible(() -> sendCommandEnabled.get())
         .build()
     );
@@ -74,15 +74,6 @@ public class Home extends Module {
         .build()
     );
 
-    private final Setting<Integer> cooldown = sgGeneral.add(new IntSetting.Builder()
-        .name("冷却时间")
-        .description("两次触发之间的冷却时间（秒）")
-        .defaultValue(10)
-        .min(0)
-        .max(300)
-        .build()
-    );
-
     private final Setting<Boolean> toggleOffOnTrigger = sgGeneral.add(new BoolSetting.Builder()
         .name("触发后关闭")
         .description("触发后自动关闭本模块")
@@ -91,7 +82,6 @@ public class Home extends Module {
     );
 
     private boolean triggered = false;
-    private long lastTriggerTime = 0;
 
     public Home() {
         super(
@@ -99,6 +89,11 @@ public class Home extends Module {
             "自动回家",
             "当不死图腾数量或高度低于阈值时自动执行回家命令。"
         );
+    }
+
+    @Override
+    public void onActivate() {
+        triggered = false;
     }
 
     @EventHandler
@@ -128,13 +123,8 @@ public class Home extends Module {
             return;
         }
 
-        // 冷却检查放在 triggered 标记之前，防止冷却期间标记卡死
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - this.lastTriggerTime < cooldown.get() * 1000L) return;
-
         if (!this.triggered) {
             this.triggered = true;
-            this.lastTriggerTime = currentTime;
             triggerHome(reason);
         }
     }
@@ -169,17 +159,6 @@ public class Home extends Module {
         int totems = countTotems();
         double y = mc.player.getY();
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("图腾:").append(totems);
-        sb.append(" 高度:").append(String.format("%.1f", y));
-
-        long timeSinceLast = System.currentTimeMillis() - this.lastTriggerTime;
-        int cooldownMs = cooldown.get() * 1000;
-        if (timeSinceLast < cooldownMs) {
-            long remaining = (cooldownMs - timeSinceLast) / 1000;
-            sb.append(" 冷却:").append(remaining).append("s");
-        }
-
-        return sb.toString();
+        return "图腾:" + totems + " 高度:" + String.format("%.1f", y);
     }
 }
