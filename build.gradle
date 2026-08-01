@@ -2,6 +2,25 @@ plugins {
     id 'fabric-loom' version '1.14.10'
 }
 
+// 版本目录：MC版本 → [yarn映射, meteor jar文件名]
+def mcVersions = [
+    '1.21.1' : [yarn: '1.21.1+build.3',  jar: 'meteor-client-1.21.1.jar'],
+    '1.21.4' : [yarn: '1.21.4+build.8',  jar: 'meteor-client-1.21.4.jar'],
+    '1.21.11': [yarn: '1.21.11+build.4', jar: 'meteor-client-1.21.11.jar'],
+]
+
+// 选择目标版本：-Pmc_version=1.21.4 指定，默认 1.21.11
+def mcVersion = project.hasProperty('mc_version') ? project.mc_version : project.minecraft_version
+def verInfo = mcVersions[mcVersion]
+if (verInfo == null) {
+    throw new GradleException("不支持的 Minecraft 版本: ${mcVersion}，可选: ${mcVersions.keySet()}")
+}
+
+// 覆盖 gradle.properties 中的版本号
+project.ext.minecraft_version = mcVersion
+project.ext.yarn_mappings = verInfo.yarn
+project.ext.meteor_jar = verInfo.jar
+
 version = project.mod_version
 group = project.maven_group
 
@@ -10,7 +29,6 @@ base {
 }
 
 repositories {
-    // 国内镜像优先
     maven {
         name = '阿里云 Maven 中央仓库'
         url = 'https://maven.aliyun.com/repository/central'
@@ -34,23 +52,23 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    minecraft "com.mojang:minecraft:${project.ext.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.ext.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    // 使用本地 meteor-client JAR，编译+运行都需要（具体文件名由各分支的 gradle.properties 指定）
-    modApi files("${rootDir}/libs/${project.meteor_jar}")
+    // 本地 meteor-client JAR（libs/ 下按版本存放）
+    modApi files("${rootDir}/libs/${project.ext.meteor_jar}")
 
-    // meteor-client 的传递依赖（因使用本地 JAR 需手动声明）
+    // meteor-client 的传递依赖（本地 JAR 需手动声明）
     modApi "meteordevelopment:orbit:0.2.4"
 }
 
 processResources {
     inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "minecraft_version", project.ext.minecraft_version
 
     filesMatching("fabric.mod.json") {
-        expand version: project.version, minecraft_version: project.minecraft_version
+        expand version: project.version, minecraft_version: project.ext.minecraft_version
     }
 }
 
