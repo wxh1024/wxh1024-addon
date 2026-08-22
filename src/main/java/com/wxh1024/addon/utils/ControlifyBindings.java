@@ -8,22 +8,34 @@ import java.lang.reflect.Method;
 
 public final class ControlifyBindings {
 
-    private static volatile boolean ready, failed;
+    private static volatile boolean ready, failed, noController;
     private static volatile Method digitalNow;
     private static volatile Object[] bindings; // [fwd,back,left,right,jump,sneak,sprint]
+    private static volatile Object instance;
+    private static volatile Class<?> bindingsClass;
     static volatile boolean moduleOn;
     static volatile int checkTick = -1;
 
     private ControlifyBindings() {}
 
+    private static volatile long nextTry;
+
     public static boolean enabled() {
         if (ready) return checkModule();
+        if (failed || noController) {
+            long now = System.currentTimeMillis();
+            if (now < nextTry) return false;
+            nextTry = now + 5000; // 5 秒后重试（可能玩家刚接上手柄）
+        }
         return init();
     }
 
     public static boolean is(int idx) {
-        try { return (boolean) digitalNow.invoke(bindings[idx]); }
-        catch (Exception e) { return false; }
+        if (bindings == null || idx < 0 || idx >= bindings.length) return false;
+        Object b = bindings[idx];
+        if (b == null) return false;
+        try { return (boolean) digitalNow.invoke(b); }
+        catch (Throwable e) { return false; }
     }
 
     private static boolean checkModule() {
@@ -40,19 +52,22 @@ public final class ControlifyBindings {
         if (ready) return checkModule();
         if (failed) return false;
         try {
-            Class<?> cf = Class.forName("dev.isxander.controlify.Controlify");
-            Object inst = cf.getMethod("instance").invoke(null);
-            Object opt = cf.getMethod("getCurrentController").invoke(inst);
+            if (instance == null) {
+                Class<?> cf = Class.forName("dev.isxander.controlify.Controlify");
+                instance = cf.getMethod("instance").invoke(null);
+                bindingsClass = Class.forName("dev.isxander.controlify.bindings.ControlifyBindings");
+            }
+            Object opt = instance.getClass().getMethod("getCurrentController").invoke(instance);
             Object ctrl = opt.getClass().getMethod("orElse", Object.class).invoke(opt, (Object) null);
-            if (ctrl == null) return false;
+            if (ctrl == null) { noController = true; return false; }
+            noController = false;
 
-            Class<?> b = Class.forName("dev.isxander.controlify.bindings.ControlifyBindings");
             Method on = null;
             bindings = new Object[7];
             String[] names = {"WALK_FORWARD","WALK_BACKWARD","WALK_LEFT","WALK_RIGHT",
                               "JUMP","SNEAK","SPRINT"};
             for (int i = 0; i < 7; i++) {
-                Object sup = b.getField(names[i]).get(null);
+                Object sup = bindingsClass.getField(names[i]).get(null);
                 if (on == null) on = sup.getClass().getMethod("on", ctrl.getClass());
                 bindings[i] = on.invoke(sup, ctrl);
             }
