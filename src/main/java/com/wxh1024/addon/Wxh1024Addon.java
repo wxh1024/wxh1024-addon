@@ -7,8 +7,15 @@ import meteordevelopment.meteorclient.systems.modules.Modules;
 import com.wxh1024.addon.commands.C3uCommand;
 import com.wxh1024.addon.commands.TpCommand;
 import com.wxh1024.addon.commands.TpaCommand;
+import com.wxh1024.addon.modules.BadPacketsFix;
 import com.wxh1024.addon.modules.ControlifyCompat;
 import com.wxh1024.addon.modules.DropTest;
+import com.wxh1024.addon.modules.ElytraExtra;
+import com.wxh1024.addon.modules.ElytraFlight;
+import com.wxh1024.addon.modules.ElytraFlightLegit;
+import com.wxh1024.addon.modules.ElytraGrimAccelerate;
+import com.wxh1024.addon.modules.ElytraJump;
+import com.wxh1024.addon.modules.ElytraSlowFall;
 import com.wxh1024.addon.modules.ItemFrameChestOpener;
 import com.wxh1024.addon.modules.Home;
 
@@ -22,6 +29,13 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new ItemFrameChestOpener());
         Modules.get().add(new ControlifyCompat());
         Modules.get().add(new DropTest());
+        Modules.get().add(new ElytraFlight());
+        Modules.get().add(new ElytraExtra());
+        Modules.get().add(new ElytraGrimAccelerate());
+        Modules.get().add(new ElytraFlightLegit());
+        Modules.get().add(new ElytraJump());
+        Modules.get().add(new ElytraSlowFall());
+        Modules.get().add(new BadPacketsFix());
 
         Commands.add(new C3uCommand());
         Commands.add(new TpCommand());
