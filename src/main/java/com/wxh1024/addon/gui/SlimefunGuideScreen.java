@@ -7,6 +7,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import com.wxh1024.addon.data.SlimefunModelRegistry;
+import com.wxh1024.addon.data.SlimefunRecipeDatabase;
 import com.wxh1024.addon.gui.SlimefunModelScreen;
 
 /** Minimal runnable guide screen; recipe database integration is a later migration step. */
@@ -53,6 +54,8 @@ public class SlimefunGuideScreen extends Screen {
             context.drawText(textRenderer, Text.literal(recipe.output() + " [" + recipe.type() + "]"),
                     x, line, 0xDDDDDD, false);
         }
+        context.drawText(textRenderer, Text.literal("真实采集配方: " + SlimefunRecipeDatabase.size()),
+                x, line + 16, 0x55FF55, false);
     }
 
     @Override

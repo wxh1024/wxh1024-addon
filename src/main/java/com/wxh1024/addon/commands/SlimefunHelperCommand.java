@@ -7,6 +7,7 @@ import com.wxh1024.addon.data.SlimefunModelRegistry;
 import com.wxh1024.addon.utils.SlimefunItemInfo;
 import com.wxh1024.addon.modules.SlimefunItemInspector;
 import com.wxh1024.addon.modules.SlimefunTaskScheduler;
+import com.wxh1024.addon.data.SlimefunRecipeDatabase;
 import meteordevelopment.meteorclient.commands.Command;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.MinecraftClient;
@@ -68,20 +69,31 @@ public class SlimefunHelperCommand extends Command {
                     return SINGLE_SUCCESS;
                 })));
         builder.then(literal("recipes").executes(c -> {
-            info("当前没有内置外部配方数据库；请提供 slimefun-recipes.json 资源后再查询。");
+            info("已采集配方: " + SlimefunRecipeDatabase.size() + " 条");
             return SINGLE_SUCCESS;
         }));
         builder.then(literal("recipes").then(argument("query", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
                 .executes(c -> {
                     String query = c.getArgument("query", String.class);
                     var recipes = SlimefunModelRegistry.recipes(query);
+                    var collected = SlimefunRecipeDatabase.query(query);
+                    info("真实采集配方 " + collected.size() + " 条");
+                    collected.stream().limit(10).forEach(r -> info(r.output() + " <- " + r.inputs().stream().map(i -> i.id() + "x" + i.count()).toList()));
                     if (recipes.isEmpty()) {
-                        info("未找到配方/材料。当前资源配方数量为 0 时不会伪造数据。");
+                        info("资源配方未找到；以上仅显示真实采集记录。");
                     }
                     info("匹配配方/材料 " + recipes.size() + " 条");
                     recipes.stream().limit(10).forEach(r -> info(r.output() + " <- " + String.join(", ", r.ingredients())));
                     return SINGLE_SUCCESS;
                 })));
+        builder.then(literal("recipes").then(literal("reload").executes(c -> {
+            SlimefunRecipeDatabase.reload(); info("配方数据库已重新加载: " + SlimefunRecipeDatabase.size());
+            return SINGLE_SUCCESS;
+        })));
+        builder.then(literal("recipes").then(literal("clear").executes(c -> {
+            SlimefunRecipeDatabase.clear(); info("已清除采集配方");
+            return SINGLE_SUCCESS;
+        })));
         builder.then(literal("nbt").executes(c -> {
             info("当前物品 ID: " + SlimefunItemInfo.id(SlimefunItemInfo.mainHand()));
             return SINGLE_SUCCESS;

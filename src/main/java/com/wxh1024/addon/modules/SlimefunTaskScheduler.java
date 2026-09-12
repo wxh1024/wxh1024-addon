@@ -15,6 +15,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import com.wxh1024.addon.data.SlimefunModelRegistry;
 import com.wxh1024.addon.utils.SlimefunItemInfo;
+import com.wxh1024.addon.data.SlimefunRecipeDatabase;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 
 /** Meteor-native replacement for the dependency-free part of the old task manager. */
 public class SlimefunTaskScheduler extends Module {
@@ -30,6 +32,7 @@ public class SlimefunTaskScheduler extends Module {
             .defaultValue(10).min(1).sliderMax(100).build());
     private final Deque<String> itemHistory = new ArrayDeque<>();
     private int ticks;
+    private int screenScanTicks;
 
     public SlimefunTaskScheduler() {
         super(Wxh1024Addon.WXH1024, "slimefun-task-scheduler",
@@ -44,6 +47,10 @@ public class SlimefunTaskScheduler extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
+        if (++screenScanTicks >= 5) {
+            screenScanTicks = 0;
+            if (mc.currentScreen instanceof HandledScreen<?> handled) SlimefunRecipeDatabase.scan(handled);
+        }
         if (!recordItems.get() || mc.player == null || ++ticks < interval.get()) return;
         ticks = 0;
         ItemStack stack = mc.player.getMainHandStack();
