@@ -22,6 +22,14 @@ import com.wxh1024.addon.modules.ItemFrameChestOpener;
 import com.wxh1024.addon.modules.SlimefunItemInspector;
 import com.wxh1024.addon.modules.SlimefunTaskScheduler;
 import com.wxh1024.addon.modules.Home;
+import com.wxh1024.addon.modules.EntitySearchNotifier;
+import com.wxh1024.addon.modules.TotemSafetyNotifier;
+import com.wxh1024.addon.modules.ChatFilter;
+import com.wxh1024.addon.modules.EntityBoxESP;
+import com.wxh1024.addon.modules.ServerInfoNotifier;
+import com.wxh1024.addon.modules.ClientInfoHud;
+import com.wxh1024.addon.modules.ChatReceiveFilter;
+import com.wxh1024.addon.modules.AutoLogoutSafety;
 
 public class Wxh1024Addon extends MeteorAddon {
     public static final String MOD_ID = "wxh1024-addon";
@@ -42,6 +50,14 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new BadPacketsFix());
         Modules.get().add(new SlimefunItemInspector());
         Modules.get().add(new SlimefunTaskScheduler());
+        Modules.get().add(new EntitySearchNotifier());
+        Modules.get().add(new TotemSafetyNotifier());
+        Modules.get().add(new ChatFilter());
+        Modules.get().add(new EntityBoxESP());
+        Modules.get().add(new ServerInfoNotifier());
+        Modules.get().add(new ClientInfoHud());
+        Modules.get().add(new ChatReceiveFilter());
+        Modules.get().add(new AutoLogoutSafety());
 
         Commands.add(new C3uCommand());
         Commands.add(new TpCommand());

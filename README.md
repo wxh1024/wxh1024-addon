@@ -85,6 +85,9 @@
   `id`、`sfid`、`slimefun_id`、`slimefun:id`、`PublicBukkitValues` 等常见字段。
 - `.sfh recipes <关键词>`：查询资源配方及材料；`SlimefunTaskScheduler` 启用
   后会将观察到的物品 ID 持久化到配置目录。
+- 客户端 Tick 会缓存玩家 RecipeBook 中可见的原版配方；可用
+  `.sfh vanilla`、`.sfh vanilla <关键词>` 查询，`.sfh vanilla clear` 清空。
+- `.sfh saved`、`.sfh saved clear` 管理保存物品 ID 和数量数据。
 - `.sfh help/list/config/task list/save/save clear`：查看命令、观察物品、
   配置路径、任务记录和持久化观察数据。
 

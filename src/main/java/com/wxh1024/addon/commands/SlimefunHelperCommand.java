@@ -7,7 +7,12 @@ import com.wxh1024.addon.data.SlimefunModelRegistry;
 import com.wxh1024.addon.utils.SlimefunItemInfo;
 import com.wxh1024.addon.modules.SlimefunItemInspector;
 import com.wxh1024.addon.modules.SlimefunTaskScheduler;
+import com.wxh1024.addon.data.VanillaRecipeCache;
+import com.wxh1024.addon.data.SavedItemStore;
+import com.wxh1024.addon.gui.SlimefunRecipeScreen;
 import com.wxh1024.addon.data.SlimefunRecipeDatabase;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import com.wxh1024.addon.data.SlimefunMultiblockRegistry;
 import meteordevelopment.meteorclient.commands.Command;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.MinecraftClient;
@@ -70,6 +75,7 @@ public class SlimefunHelperCommand extends Command {
                 })));
         builder.then(literal("recipes").executes(c -> {
             info("已采集配方: " + SlimefunRecipeDatabase.size() + " 条");
+            openRecipes();
             return SINGLE_SUCCESS;
         }));
         builder.then(literal("recipes").then(argument("query", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
@@ -94,6 +100,36 @@ public class SlimefunHelperCommand extends Command {
             SlimefunRecipeDatabase.clear(); info("已清除采集配方");
             return SINGLE_SUCCESS;
         })));
+        builder.then(literal("recipes").then(literal("gui").executes(c -> {
+            openRecipes(); return SINGLE_SUCCESS;
+        })));
+        builder.then(literal("autofill").executes(c -> {
+            if (!(MinecraftClient.getInstance().currentScreen instanceof HandledScreen<?> screen)) {
+                error("请先打开配方容器界面"); return SINGLE_SUCCESS;
+            }
+            var recipes = SlimefunRecipeDatabase.all();
+            if (recipes.isEmpty()) { error("没有真实采集配方"); return SINGLE_SUCCESS; }
+            info("已尝试填充: " + SlimefunRecipeDatabase.fillInputs(screen, recipes.get(0)) + " 个槽位");
+            return SINGLE_SUCCESS;
+        }));
+        builder.then(literal("clearinputs").executes(c -> {
+            if (MinecraftClient.getInstance().currentScreen instanceof HandledScreen<?> screen)
+                info("已清空槽位: " + SlimefunRecipeDatabase.clearInputs(screen));
+            else error("请先打开配方容器界面");
+            return SINGLE_SUCCESS;
+        }));
+        builder.then(literal("multiblock").executes(c -> {
+            String match = SlimefunMultiblockRegistry.match();
+            info(match == null ? "未匹配已记录多方块结构 (已注册 " + SlimefunMultiblockRegistry.size() + " 个)"
+                    : "匹配多方块配方: " + match);
+            return SINGLE_SUCCESS;
+        }));
+        builder.then(literal("multiblock").then(literal("capture").then(argument("recipe",
+                com.mojang.brigadier.arguments.StringArgumentType.greedyString()).executes(c -> {
+                    String id = c.getArgument("recipe", String.class);
+                    info(SlimefunMultiblockRegistry.capture(id) ? "已记录多方块结构: " + id : "无法记录结构，请进入世界");
+                    return SINGLE_SUCCESS;
+                }))));
         builder.then(literal("nbt").executes(c -> {
             info("当前物品 ID: " + SlimefunItemInfo.id(SlimefunItemInfo.mainHand()));
             return SINGLE_SUCCESS;
@@ -101,6 +137,7 @@ public class SlimefunHelperCommand extends Command {
         builder.then(literal("save").executes(c -> {
             String id = SlimefunItemInfo.id(SlimefunItemInfo.mainHand());
             SlimefunModelRegistry.recordItem(id);
+            SavedItemStore.save(SlimefunItemInfo.mainHand());
             info("已保存观察物品: " + id);
             return SINGLE_SUCCESS;
         }));
@@ -110,12 +147,39 @@ public class SlimefunHelperCommand extends Command {
             info("已清除观察物品: " + count + " 条");
             return SINGLE_SUCCESS;
         })));
+        builder.then(literal("saved").executes(c -> {
+            info("保存物品 " + SavedItemStore.ids().size() + " 条");
+            SavedItemStore.ids().stream().limit(50).forEach(this::info);
+            return SINGLE_SUCCESS;
+        }));
+        builder.then(literal("saved").then(literal("clear").executes(c -> {
+            SavedItemStore.clear(); info("已清空保存物品");
+            return SINGLE_SUCCESS;
+        })));
+        builder.then(literal("vanilla").executes(c -> {
+            info("原版配方缓存: " + VanillaRecipeCache.size() + " 条");
+            return SINGLE_SUCCESS;
+        }));
+        builder.then(literal("vanilla").then(argument("query", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                .executes(c -> {
+                    VanillaRecipeCache.query(c.getArgument("query", String.class)).stream().limit(10)
+                            .forEach(r -> info(r.output().getName().getString() + " [" + r.station().getName().getString() + "]"));
+                    return SINGLE_SUCCESS;
+                })));
+        builder.then(literal("vanilla").then(literal("clear").executes(c -> {
+            VanillaRecipeCache.clear(); info("已清空原版配方缓存"); return SINGLE_SUCCESS;
+        })));
     }
 
     private int openModels(String query) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player != null) client.setScreen(new SlimefunModelScreen(client.currentScreen, query));
         return SINGLE_SUCCESS;
+    }
+
+    private void openRecipes() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) client.setScreen(new SlimefunRecipeScreen(client.currentScreen));
     }
 
     private int openGuide() {

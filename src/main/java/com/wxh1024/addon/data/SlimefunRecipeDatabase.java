@@ -97,6 +97,66 @@ public final class SlimefunRecipeDatabase {
                 || r.inputs().stream().anyMatch(i -> i.id().toLowerCase(Locale.ROOT).contains(needle))).limit(100).toList();
     }
 
+    public static synchronized List<RecipeRecord> all() {
+        load();
+        return List.copyOf(RECIPES.values());
+    }
+
+    public static synchronized int clearInputs(net.minecraft.client.gui.screen.ingame.HandledScreen<?> screen) {
+        if (!isGuide(screen) || screen.getScreenHandler().slots.size() < 27) return 0;
+        int cleared = 0;
+        for (int index : INPUT_SLOTS) {
+            if (!stack(screen.getScreenHandler().slots, index).isEmpty()) {
+                cleared++;
+                clickSlot(screen, index);
+            }
+        }
+        return cleared;
+    }
+
+    public static synchronized int fillInputs(net.minecraft.client.gui.screen.ingame.HandledScreen<?> screen,
+                                              RecipeRecord recipe) {
+        if (!isGuide(screen) || recipe == null || screen.getScreenHandler().slots.size() < 27) return 0;
+        int filled = 0;
+        for (int i = 0; i < INPUT_SLOTS.length && i < recipe.inputs().size(); i++) {
+            ItemRecord wanted = recipe.inputs().get(i);
+            if (wanted.count() <= 0 || !stack(screen.getScreenHandler().slots, INPUT_SLOTS[i]).isEmpty()) continue;
+            for (int slot = 27; slot < screen.getScreenHandler().slots.size(); slot++) {
+                ItemStack candidate = stack(screen.getScreenHandler().slots, slot);
+                String id = candidate.isEmpty() ? "" : SlimefunItemIds.find(candidate)
+                        .orElseGet(() -> Registries.ITEM.getId(candidate.getItem()).toString());
+                if (id.equals(wanted.id())) {
+                    clickSlot(screen, slot);
+                    clickSlot(screen, INPUT_SLOTS[i]);
+                    filled++;
+                    break;
+                }
+
+            }
+        }
+        return filled;
+    }
+
+    /** Counts the non-air blocks in the player's immediate 3x3 footprint. */
+    public static int nearbyStructureBlocks() {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) return 0;
+        var origin = client.player.getBlockPos();
+        int count = 0;
+        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+            if (!client.world.getBlockState(origin.add(x, -1, z)).isAir()) count++;
+        }
+        return count;
+    }
+
+    private static void clickSlot(HandledScreen<?> screen, int slot) {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client.interactionManager != null && client.player != null) {
+            client.interactionManager.clickSlot(screen.getScreenHandler().syncId, slot, 0,
+                    net.minecraft.screen.slot.SlotActionType.PICKUP, client.player);
+        }
+    }
+
     public static synchronized int size() { load(); return RECIPES.size(); }
 
     public static synchronized void clear() { RECIPES.clear(); save(); }

@@ -17,6 +17,7 @@ import com.wxh1024.addon.data.SlimefunModelRegistry;
 import com.wxh1024.addon.utils.SlimefunItemInfo;
 import com.wxh1024.addon.data.SlimefunRecipeDatabase;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import com.wxh1024.addon.data.VanillaRecipeCache;
 
 /** Meteor-native replacement for the dependency-free part of the old task manager. */
 public class SlimefunTaskScheduler extends Module {
@@ -47,6 +48,7 @@ public class SlimefunTaskScheduler extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
+        VanillaRecipeCache.tick();
         if (++screenScanTicks >= 5) {
             screenScanTicks = 0;
             if (mc.currentScreen instanceof HandledScreen<?> handled) SlimefunRecipeDatabase.scan(handled);
