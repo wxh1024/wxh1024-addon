@@ -62,9 +62,9 @@ dependencies {
 
     // meteor-client 的传递依赖（本地 JAR 需手动声明）
     modApi "meteordevelopment:orbit:0.2.4"
-    compileOnly "com.github.houbb:pinyin:0.4.0"
-    compileOnly "io.netty:netty-handler-proxy:4.1.97.Final"
-    compileOnly "org.yaml:snakeyaml:1.30"
+    implementation "com.github.houbb:pinyin:0.4.0"
+    implementation "io.netty:netty-handler-proxy:4.1.97.Final"
+    implementation "org.yaml:snakeyaml:1.30"
     compileOnly "org.projectlombok:lombok:1.18.30"
     annotationProcessor "org.projectlombok:lombok:1.18.30"
     compileOnly "com.google.code.findbugs:jsr305:3.0.2"

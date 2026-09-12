@@ -1,6 +1,5 @@
 package me.matl114;
 
-import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -17,18 +16,15 @@ import me.matl114.managers.TaskManagers;
 import me.matl114.managers.Tasks;
 import me.matl114.utils.CommonUtils;
 import me.matl114.utils.Debug;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.model.loading.v1.PreparableModelLoadingPlugin;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.impl.client.model.loading.ModelLoadingPluginManager;
-import net.fabricmc.loader.api.ModContainer;
-import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
 
-public class SlimefunHelper implements ModInitializer {
+public class SlimefunHelper {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
@@ -38,8 +34,6 @@ public class SlimefunHelper implements ModInitializer {
     public static SlimefunHelper instance;
 
     @Getter
-    public static ModContainer modContainer;
-
     public static boolean DEV_ENV = false;
 
     public static Set<String> DEV_NAME =
@@ -54,24 +48,13 @@ public class SlimefunHelper implements ModInitializer {
         }
     }
 
-    public static void initializeEnvironment() {
-        for (var re : FabricLoaderImpl.INSTANCE.getEntrypointContainers("main", ModInitializer.class)) {
-            if (re.getEntrypoint() == instance) {
-                modContainer = re.getProvider();
-                break;
-            }
-        }
-        Preconditions.checkNotNull(modContainer);
-    }
-
-    @Override
-    public void onInitialize() {
-        instance = this;
+    public static synchronized void initialize() {
+        if (instance != null) return;
+        instance = new SlimefunHelper();
         // This code runs as soon as Minecraft is in a mod-load-ready state.
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
         authentication();
-        initializeEnvironment();
         Debug.info("SlimefunHelper, start!");
         Debug.info("SlimefunHelper start loading!");
         reloadModConfig();

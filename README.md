@@ -24,6 +24,7 @@
 | 展示框开箱 `ItemFrameChestOpener` | wxh1024 | 右键物品展示框时，自动打开其后方的容器（箱子、木桶、潜影盒、发射器、漏斗、熔炉、末影箱、酿造台、合成器等，可逐项开关）。 |
 | 滴落测试 `DropTest` | wxh1024 | 移植自参考项目的滴落/放置测试辅助功能。 |
 | Controlify 兼容 `ControlifyCompat` | wxh1024 | 兼容 Controlify 手柄按键绑定。 |
+| SlimefunHelper | wxh1024 | 已合并为本 Addon 的内部功能，由 Meteor Addon 入口统一初始化。 |
 
 ## 命令（Commands）
 

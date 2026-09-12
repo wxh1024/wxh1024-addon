@@ -18,6 +18,7 @@ import com.wxh1024.addon.modules.ElytraJump;
 import com.wxh1024.addon.modules.ElytraSlowFall;
 import com.wxh1024.addon.modules.ItemFrameChestOpener;
 import com.wxh1024.addon.modules.Home;
+import me.matl114.SlimefunHelper;
 
 public class Wxh1024Addon extends MeteorAddon {
     public static final String MOD_ID = "wxh1024-addon";
@@ -25,6 +26,8 @@ public class Wxh1024Addon extends MeteorAddon {
 
     @Override
     public void onInitialize() {
+        SlimefunHelper.initialize();
+
         Modules.get().add(new Home());
         Modules.get().add(new ItemFrameChestOpener());
         Modules.get().add(new ControlifyCompat());
