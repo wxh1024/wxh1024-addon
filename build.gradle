@@ -55,12 +55,19 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.ext.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.ext.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.141.3+1.21.11"
 
     // 本地 meteor-client JAR（libs/ 下按版本存放）
     modApi files("${rootDir}/libs/${project.ext.meteor_jar}")
 
     // meteor-client 的传递依赖（本地 JAR 需手动声明）
     modApi "meteordevelopment:orbit:0.2.4"
+    compileOnly "com.github.houbb:pinyin:0.4.0"
+    compileOnly "io.netty:netty-handler-proxy:4.1.97.Final"
+    compileOnly "org.yaml:snakeyaml:1.30"
+    compileOnly "org.projectlombok:lombok:1.18.30"
+    annotationProcessor "org.projectlombok:lombok:1.18.30"
+    compileOnly "com.google.code.findbugs:jsr305:3.0.2"
 }
 
 processResources {

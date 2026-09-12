@@ -5,9 +5,16 @@
   "name": "wxh1024",
   "description": "wxh1024 自制插件 - 展示框开箱 & 自动回家",
   "authors": ["wxh1024"],
-  "environment": "client",
-  "mixins": ["wxh1024-addon.mixins.json"],
+  "environment": "*",
+  "mixins": [
+    "wxh1024-addon.mixins.json",
+    "slimefunhelper.mixins.json",
+    "slimefunhelper.mixins.hooks.json"
+  ],
   "entrypoints": {
+    "main": [
+      "me.matl114.SlimefunHelper"
+    ],
     "meteor": [
       "com.wxh1024.addon.Wxh1024Addon"
     ]
@@ -23,6 +30,7 @@
   "depends": {
     "java": ">=21",
     "minecraft": ">=${minecraft_version}",
-    "meteor-client": "*"
+    "meteor-client": "*",
+    "fabric-api": "*"
   }
 }
