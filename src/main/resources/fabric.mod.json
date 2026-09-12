@@ -7,9 +7,7 @@
   "authors": ["wxh1024"],
   "environment": "client",
   "mixins": [
-    "wxh1024-addon.mixins.json",
-    "slimefunhelper.mixins.json",
-    "slimefunhelper.mixins.hooks.json"
+    "wxh1024-addon.mixins.json"
   ],
   "entrypoints": {
     "meteor": [

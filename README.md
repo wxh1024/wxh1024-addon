@@ -68,6 +68,34 @@
 .tpa del home
 ```
 
+### SlimefunHelper 首批 Meteor 迁移
+
+当前已迁移为 Meteor 原生实现的核心入口：
+
+- `.slimefun id`：复制主手物品的 Minecraft 注册表 ID。
+- `.slimefun guide`：打开 Meteor 内部的物品检查/指南界面。
+- `Slimefun Item Inspector` 模块：启用时执行一次物品 ID 复制。
+- `.sfh id`、`.sfh openmenu [guide]`、`.sfh reload`：迁移原 `!!` 命令中
+  不依赖外部 API 的入口。
+- `Slimefun Task Scheduler` 模块及 `.sfh task report`：以 Meteor 设置和
+  Tick 事件实现轻量物品任务记录。
+- `.sfh models [关键词]`：查询内置 `slimefun-item-model.yml` 并打开可滚动
+  的映射查看界面；`.sfh model <键>`：查询单个 CustomModelData 映射。
+- `.sfh nbt`：读取当前物品的 Minecraft Data Component 自定义 NBT，兼容
+  `id`、`sfid`、`slimefun_id`、`slimefun:id`、`PublicBukkitValues` 等常见字段。
+- `.sfh recipes <关键词>`：查询资源配方及材料；`SlimefunTaskScheduler` 启用
+  后会将观察到的物品 ID 持久化到配置目录。
+- `.sfh help/list/config/task list/save/save clear`：查看命令、观察物品、
+  配置路径、任务记录和持久化观察数据。
+
+配方数据不会由模型映射推断或伪造。只有放置 `slimefun-recipes.json` 资源并
+符合 `{ "OUTPUT": { "ingredients": [...], "type": "..." } }` 格式时，配方
+查询才会返回真实数据；没有该资源时命令会明确提示数据库为空。
+
+配方数据库、完整 Slimefun 物品 NBT ID、配方浏览器、保存物品界面和旧的
+`!!` 客户端命令解析/聊天拦截仍在迁移中。Meteor 使用 `.sfh` 命令替代，
+不会恢复独立命令总线、Fabric ModInitializer 或可选模组适配。
+
 ## 多版本分支
 
 仓库按 Minecraft 版本分分支维护，各分支的 `gradle.properties` 已指向对应版本：

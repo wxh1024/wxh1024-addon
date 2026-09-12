@@ -7,6 +7,8 @@ import meteordevelopment.meteorclient.systems.modules.Modules;
 import com.wxh1024.addon.commands.C3uCommand;
 import com.wxh1024.addon.commands.TpCommand;
 import com.wxh1024.addon.commands.TpaCommand;
+import com.wxh1024.addon.commands.SlimefunCommand;
+import com.wxh1024.addon.commands.SlimefunHelperCommand;
 import com.wxh1024.addon.modules.BadPacketsFix;
 import com.wxh1024.addon.modules.ControlifyCompat;
 import com.wxh1024.addon.modules.DropTest;
@@ -17,8 +19,9 @@ import com.wxh1024.addon.modules.ElytraGrimAccelerate;
 import com.wxh1024.addon.modules.ElytraJump;
 import com.wxh1024.addon.modules.ElytraSlowFall;
 import com.wxh1024.addon.modules.ItemFrameChestOpener;
+import com.wxh1024.addon.modules.SlimefunItemInspector;
+import com.wxh1024.addon.modules.SlimefunTaskScheduler;
 import com.wxh1024.addon.modules.Home;
-import me.matl114.SlimefunHelper;
 
 public class Wxh1024Addon extends MeteorAddon {
     public static final String MOD_ID = "wxh1024-addon";
@@ -26,8 +29,6 @@ public class Wxh1024Addon extends MeteorAddon {
 
     @Override
     public void onInitialize() {
-        SlimefunHelper.initialize();
-
         Modules.get().add(new Home());
         Modules.get().add(new ItemFrameChestOpener());
         Modules.get().add(new ControlifyCompat());
@@ -39,10 +40,14 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new ElytraJump());
         Modules.get().add(new ElytraSlowFall());
         Modules.get().add(new BadPacketsFix());
+        Modules.get().add(new SlimefunItemInspector());
+        Modules.get().add(new SlimefunTaskScheduler());
 
         Commands.add(new C3uCommand());
         Commands.add(new TpCommand());
         Commands.add(new TpaCommand());
+        Commands.add(new SlimefunCommand());
+        Commands.add(new SlimefunHelperCommand());
     }
 
     @Override
