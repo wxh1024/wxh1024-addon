@@ -30,6 +30,13 @@ import com.wxh1024.addon.modules.ServerInfoNotifier;
 import com.wxh1024.addon.modules.ClientInfoHud;
 import com.wxh1024.addon.modules.ChatReceiveFilter;
 import com.wxh1024.addon.modules.AutoLogoutSafety;
+import com.wxh1024.addon.modules.Sprint;
+import com.wxh1024.addon.modules.SwimControl;
+import com.wxh1024.addon.modules.StepHeight;
+import com.wxh1024.addon.modules.NoSlowDown;
+import com.wxh1024.addon.modules.NoFall;
+import com.wxh1024.addon.modules.GuiMove;
+import com.wxh1024.addon.modules.MoveTimer;
 
 public class Wxh1024Addon extends MeteorAddon {
     public static final String MOD_ID = "wxh1024-addon";
@@ -58,6 +65,13 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new ClientInfoHud());
         Modules.get().add(new ChatReceiveFilter());
         Modules.get().add(new AutoLogoutSafety());
+        Modules.get().add(new Sprint());
+        Modules.get().add(new SwimControl());
+        Modules.get().add(new StepHeight());
+        Modules.get().add(new NoSlowDown());
+        Modules.get().add(new NoFall());
+        Modules.get().add(new GuiMove());
+        Modules.get().add(new MoveTimer());
 
         Commands.add(new C3uCommand());
         Commands.add(new TpCommand());
