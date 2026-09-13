@@ -5,9 +5,9 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 public class Flight extends Module {
- private final SettingGroup sg=settings.getDefaultGroup();
- private final Setting<Double> speed=sg.add(new DoubleSetting.Builder().name("speed").defaultValue(0.5).min(0).sliderMax(5).build());
- public Flight(){super(Wxh1024Addon.WXH1024,"flight","Free flight movement.");}
- @EventHandler private void tick(TickEvent.Post e){if(mc.player==null)return;mc.player.getAbilities().flying=true;mc.player.getAbilities().setFlySpeed(speed.get().floatValue()/10);mc.player.setVelocity(mc.player.getVelocity().x,0,mc.player.getVelocity().z);if(mc.options.jumpKey.isPressed())mc.player.setVelocity(mc.player.getVelocity().x,speed.get(),mc.player.getVelocity().z);if(mc.options.sneakKey.isPressed())mc.player.setVelocity(mc.player.getVelocity().x,-speed.get(),mc.player.getVelocity().z);}
- @Override public void onDeactivate(){if(mc.player!=null){mc.player.getAbilities().flying=false;mc.player.getAbilities().setFlySpeed(.05f);}}
+ private final SettingGroup sg=settings.getDefaultGroup(); private final Setting<Double> speed=sg.add(new DoubleSetting.Builder().name("speed").defaultValue(.8).min(0).sliderMax(10).build()); private boolean oldAllow,oldFlying;
+ public Flight(){super(Wxh1024Addon.WXH1024,"flight","Motion flight with vertical controls.");}
+ @Override public void onActivate(){if(mc.player!=null){oldAllow=mc.player.getAbilities().allowFlying;oldFlying=mc.player.getAbilities().flying;}}
+ @EventHandler private void tick(TickEvent.Post e){if(mc.player==null)return;var a=mc.player.getAbilities();a.allowFlying=true;a.flying=true;var v=mc.player.getVelocity();double y=(mc.options.jumpKey.isPressed()?speed.get():0)-(mc.options.sneakKey.isPressed()?speed.get():0);mc.player.setVelocity(v.x,y,v.z);if(mc.options.forwardKey.isPressed())mc.player.addVelocity(mc.player.getRotationVector().multiply(speed.get()));}
+ @Override public void onDeactivate(){if(mc.player!=null){mc.player.getAbilities().allowFlying=oldAllow;mc.player.getAbilities().flying=oldFlying;mc.player.setVelocity(0,0,0);}}
 }

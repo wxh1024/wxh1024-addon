@@ -84,6 +84,17 @@ import com.wxh1024.addon.modules.SpearAttack;
 import com.wxh1024.addon.modules.CombatLog;
 import com.wxh1024.addon.modules.BackTrack;
 import com.wxh1024.addon.modules.GhostHand;
+import com.wxh1024.addon.modules.AttackAura;
+import com.wxh1024.addon.modules.BowEnhance;
+import com.wxh1024.addon.modules.CombatExtra;
+import com.wxh1024.addon.modules.CombatManager;
+import com.wxh1024.addon.modules.PositionPredict;
+import com.wxh1024.addon.modules.SpearEnhance;
+import com.wxh1024.addon.modules.TotemLog;
+import com.wxh1024.addon.modules.TransactionBlocker;
+import com.wxh1024.addon.modules.SetBackLog;
+import com.wxh1024.addon.modules.Velocity;
+import com.wxh1024.addon.commands.TargetCommand;
 
 public class Wxh1024Addon extends MeteorAddon {
     public static final String MOD_ID = "wxh1024-addon";
@@ -166,12 +177,23 @@ public class Wxh1024Addon extends MeteorAddon {
         Modules.get().add(new CombatLog());
         Modules.get().add(new BackTrack());
         Modules.get().add(new GhostHand());
+        Modules.get().add(new AttackAura());
+        Modules.get().add(new BowEnhance());
+        Modules.get().add(new CombatExtra());
+        Modules.get().add(new CombatManager());
+        Modules.get().add(new PositionPredict());
+        Modules.get().add(new SpearEnhance());
+        Modules.get().add(new TotemLog());
+        Modules.get().add(new TransactionBlocker());
+        Modules.get().add(new SetBackLog());
+        Modules.get().add(new Velocity());
 
         Commands.add(new C3uCommand());
         Commands.add(new TpCommand());
         Commands.add(new TpaCommand());
         Commands.add(new SlimefunCommand());
         Commands.add(new SlimefunHelperCommand());
+        Commands.add(new TargetCommand());
     }
 
     @Override

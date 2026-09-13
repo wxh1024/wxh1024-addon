@@ -1,12 +1,15 @@
 package com.wxh1024.addon.modules;
 import com.wxh1024.addon.Wxh1024Addon;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.Blocks;
-import net.minecraft.item.Items;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.item.BlockItem;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.*;
 public class Scaffold extends Module {
- public Scaffold(){super(Wxh1024Addon.WXH1024,"scaffold","Place blocks beneath the player using normal client interaction.");}
- @EventHandler private void tick(TickEvent.Post e){if(mc.player==null||mc.world==null||mc.interactionManager==null)return;BlockPos p=mc.player.getBlockPos().down();if(!mc.world.getBlockState(p).isAir())return;int slot=-1;for(int i=0;i<9;i++)if(!mc.player.getInventory().getStack(i).isEmpty()&&!mc.player.getInventory().getStack(i).isOf(Items.AIR)){slot=i;break;}if(slot<0)return;mc.world.setBlockState(p,Blocks.COBBLESTONE.getDefaultState());}
+ private final SettingGroup sg=settings.getDefaultGroup(); private final Setting<Integer> delay=sg.add(new IntSetting.Builder().name("delay").defaultValue(1).min(1).sliderMax(10).build()); private final Setting<Integer> range=sg.add(new IntSetting.Builder().name("range").defaultValue(2).min(1).sliderMax(4).build()); private int tick;
+ public Scaffold(){super(Wxh1024Addon.WXH1024,"scaffold","Places held blocks beneath and around the player.");}
+ @EventHandler private void tick(TickEvent.Post e){if(mc.player==null||mc.world==null||mc.interactionManager==null||++tick<delay.get())return;tick=0;BlockPos base=mc.player.getBlockPos().down();if(!mc.world.getBlockState(base).isReplaceable())return;int slot=-1;for(int i=0;i<9;i++)if(mc.player.getInventory().getStack(i).getItem() instanceof BlockItem){slot=i;break;}if(slot<0)return;int old=mc.player.getInventory().getSelectedSlot();mc.player.getInventory().setSelectedSlot(slot);for(Direction d:Direction.values()){BlockPos support=base.offset(d);if(!mc.world.getBlockState(support).isReplaceable()){var hit=new BlockHitResult(support.toCenterPos(),d.getOpposite(),support,false);mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,hit);break;}}mc.player.getInventory().setSelectedSlot(old);}
 }
